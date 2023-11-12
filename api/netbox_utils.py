@@ -1,27 +1,39 @@
 import requests
 import json
 import random
-
+import ipaddress
 NETBOX_API_URL = 'https://netbox.360p.kube.kittenconnect.net/api/'
 HEADERS = {
-    'Authorization': 'Token ',
+    'Authorization': 'Token DANSTAMERELECODE ',
     'Content-Type': 'application/json',
     'Accept': 'application/json',
 }
-# Vous pouvez ajouter d'autres fonctions utiles ici (spoiler: c'est mieux)
-## Generate Loopback IP address start 2a13:79c0:ffff:fefe::/64 pour faire un /128  en hexa exemple 	2a13:79c0:ffff:fefe::b47d/128
-def generate_short_ipv6_address():
-    prefix = "2a13:79c0:ffff:fefe::/64"
+
+
+def GeneratePrefixIpV6(prefix, Byte):
+    # il faut le define prefix = "2a13:79c0:ffff:fefe::/64"
 
     # Générez un suffixe aléatoire de 4 caractères hexadécimaux pour /128
     suffix = "".join(random.choice("0123456789abcdef") for _ in range(4))
-
+    
+    if Byte == 4:
+         ipv6_address = f"{prefix[:-Byte]}:{suffix}"
+    elif Byte == 5:
+         ipv6_address = f"{prefix[:-Byte]}:{suffix}:"
     # Concaténez le préfixe et le suffixe pour former l'adresse IPv6 complète
-    ipv6_address = f"{prefix[:-4]}:{suffix}/128"
+   
 
     return ipv6_address
 
-def checkIpinNetbox(ip_address):
+
+############
+#
+#  Fonction pour vérifier si l'adresse IPv6 existe déjà dans NetBox
+#  return True si l'adresse IPv6 existe déjà dans NetBox
+#  return False si l'adresse IPv6 n'existe pas dans NetBox
+############
+
+def CheckIpExistInNetbox(ip_address):
     params = {
         "address": ip_address,
     }
@@ -32,9 +44,9 @@ def checkIpinNetbox(ip_address):
         if response.status_code == 200:
             ip_data = response.json()
             if ip_data["count"] > 0:
-                return True  # L'adresse IPv6 existe déjà dans NetBox
+                return True 
             else:
-                return False  # L'adresse IPv6 n'existe pas dans NetBox
+                return False  
         else:
             print("Erreur lors de la recherche de l'adresse IPv6 dans NetBox.")
             print(response.text)
@@ -43,27 +55,9 @@ def checkIpinNetbox(ip_address):
         print(f"Une erreur s'est produite : {str(e)}")
         return False
 
-def CreateIpinNetbox(ip_address):
-    apiurl=NETBOX_API_URL+"ipam/ip-addresses/"
-    data = {
-        "address": ip_address,
-        "description": "Description de l'adresse IPv6",
-        "custom_fields": {
-            "Pubkey": "Votre clé publique",  
-            "Userid": 5
-        }  
-    }
+############
 
-    try:
-        response = requests.post(apiurl, headers=HEADERS, json=data)
 
-        if response.status_code == 201:
-            print(f"L'adresse IPv6 {ip_address} a été créée avec succès dans NetBox.")
-        else:
-            print("Erreur lors de la création de l'adresse IPv6 dans NetBox.")
-            print(response.text)
-    except Exception as e:
-        print(f"Une erreur s'est produite : {str(e)}")
 
 def generate_or_create_ipv6_address():
     while True:
@@ -71,6 +65,28 @@ def generate_or_create_ipv6_address():
         if not checkIpinNetbox(ipv6_address):
             CreateIpinNetbox(ipv6_address)
             return ipv6_address
-test =generate_or_create_ipv6_address()
-print(test)
+## Get all the IP addresses from Prefix IPv6
+def GetAvailableAddressPrefix(prefix):
+    return true
 
+test = GeneratePrefixIpV6("2a13:79c0:ffff:fefe::/64", 4) # generate loopback
+test2 = GeneratePrefixIpV6("2a13:79c0:ffff:feff::/64", 4) + "/127" # generate prefix for wireguard
+test3 = GeneratePrefixIpV6("2a13:79c0:ffff:feff:b00b::/80", 5)
+
+print(test + "/128")
+print(test2)# + "/127")
+print(test3 + "/96")
+TAMMERE = ipaddress.IPv6Interface(test2).network
+
+test4fin = [*ipaddress.ip_network(TAMMERE).hosts()]
+print(*test4fin)
+
+#print(TAMERELALIST)
+# 2a13:79c0:ffff:feff:b00b::/80
+
+
+
+## class NewConnection to allow Loopback IP address, and /127 subnet for wireguard and return public key
+class NewConnection:
+    def __init__():
+        return true

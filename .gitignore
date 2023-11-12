@@ -1,3 +1,2 @@
-# dont push __pycache__ directories and sub directories
-__pycache__/
-
+#ignore .env file 
+.env
