@@ -3,77 +3,94 @@ import json
 import random
 import os
 from dotenv import load_dotenv
+import logging
+
+# Configuration de la journalisation
+logging.basicConfig(level=logging.INFO)
+
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 NETBOX_API_URL = os.getenv("NETBOX_API_URL")
+API_URL_IPAM = f"{NETBOX_API_URL}ipam/ip-addresses/"
+
 HEADERS = {
     'Authorization': f'Token {TOKEN}',
     'Content-Type': 'application/json',
     'Accept': 'application/json',
 }
 
-print(HEADERS)
-def GeneratePrefixIpV6(prefix, Byte):
+def generate_ipv6_suffix(prefix, byte_count):
+    """
+    Génère un suffixe IPv6 aléatoire pour un préfixe donné.
+    :param prefix: Préfixe IPv6.
+    :param byte_count: Nombre de bytes à générer.
+    :return: Adresse IPv6 complète.
+    """
+    suffix = "".join(random.choice("0123456789abcdef") for _ in range(byte_count))
+    return f"{prefix[:-byte_count]}:{suffix}"
 
-    suffix = "".join(random.choice("0123456789abcdef") for _ in range(4))
-    ipv6_address = f"{prefix[:-Byte]}:{suffix}"
-    # Concaténez le préfixe et le suffixe pour former l'adresse IPv6 complète
-
-    return ipv6_address
-
-def CheckIpExistInNetbox(ip_address):
-    params = {
-        "address": ip_address,
-    }
-    apiurl=NETBOX_API_URL+"ipam/ip-addresses/"
+def make_netbox_request(url, method="get", data=None, params=None):
+    """
+    Effectue une requête HTTP à NetBox.
+    :param url: URL de l'API NetBox.
+    :param method: Méthode HTTP ('get' ou 'post').
+    :param data: Données pour la requête POST.
+    :param params: Paramètres pour la requête GET.
+    :return: Réponse de la requête.
+    """
     try:
-        response = requests.get(apiurl, headers=HEADERS, params=params)
-
-        if response.status_code == 200:
-            ip_data = response.json()
-            if ip_data["count"] > 0:
-                return True 
-            else:
-                return False  
+        if method == "get":
+            response = requests.get(url, headers=HEADERS, params=params)
         else:
-            print("Erreur lors de la recherche de l'adresse IPv6 dans NetBox.")
-            print(response.text)
-            return False
-    except Exception as e:
-        print(f"Une erreur s'est produite : {str(e)}")
-        return False
+            response = requests.post(url, headers=HEADERS, json=data)
 
-def CreateIpinNetbox(ip_address):
-    apiurl=NETBOX_API_URL+"ipam/ip-addresses/"
+        response.raise_for_status()
+        return response.json()
+    except requests.HTTPError as http_err:
+        logging.error(f"HTTP error occurred: {http_err}")
+    except Exception as err:
+        logging.error(f"An error occurred: {err}")
+
+    return None
+
+def check_ip_exist_in_netbox(ip_address):
+    """
+    Vérifie si une adresse IP existe dans NetBox.
+    :param ip_address: Adresse IPv6 à vérifier.
+    :return: Booléen indiquant si l'adresse existe.
+    """
+    params = {"address": ip_address}
+    response = make_netbox_request(API_URL_IPAM, params=params)
+
+    if response and response["count"] > 0:
+        return True
+    return False
+
+def create_ip_in_netbox(ip_address):
+    """
+    Crée une adresse IP dans NetBox.
+    :param ip_address: Adresse IPv6 à créer.
+    """
     data = {
         "address": ip_address,
         "description": "Description de l'adresse IPv6",
-        "custom_fields": {
-            "Pubkey": "Votre clé publique",  
-            "Userid": 5
-        }  
+        "custom_fields": {"Pubkey": "Votre clé publique", "Userid": 5}
     }
+    response = make_netbox_request(API_URL_IPAM, method="post", data=data)
 
-    try:
-        response = requests.post(apiurl, headers=HEADERS, json=data)
+    if response:
+        logging.info(f"L'adresse IPv6 {ip_address} a été créée avec succès dans NetBox.")
 
-        if response.status_code == 201:
-            print(f"L'adresse IPv6 {ip_address} a été créée avec succès dans NetBox.")
-        else:
-            print("Erreur lors de la création de l'adresse IPv6 dans NetBox.")
-            print(response.text)
-    except Exception as e:
-        print(f"Une erreur s'est produite : {str(e)}")
-
-
-
-def CreateLoopBack():
-    #Le while true permet de relancer la fonction si l'adresse existe déjà dans NetBox
+def create_loopback():
+    """
+    Crée une adresse loopback qui n'existe pas encore dans NetBox.
+    :return: Adresse loopback créée.
+    """
     while True:
-        temp = GeneratePrefixIpV6("2a13:79c0:ffff:fefe::/64", 4)
-        if not CheckIpExistInNetbox(temp):
-            CreateIpinNetbox(temp)
-            return temp
+        temp_ip = generate_ipv6_suffix("2a13:79c0:ffff:fefe::/64", 4)
+        if not check_ip_exist_in_netbox(temp_ip):
+            create_ip_in_netbox(temp_ip)
+            return temp_ip
 
-Loopback = CreateLoopBack()
-print(Loopback + "/128")
+loopback = create_loopback()
+print(f"{loopback}/128")
