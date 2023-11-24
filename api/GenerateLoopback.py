@@ -19,6 +19,7 @@ HEADERS = {
     'Accept': 'application/json',
 }
 
+
 def generate_ipv6_suffix(prefix, byte_count):
     """
     Génère un suffixe IPv6 aléatoire pour un préfixe donné.
@@ -28,6 +29,7 @@ def generate_ipv6_suffix(prefix, byte_count):
     """
     suffix = "".join(random.choice("0123456789abcdef") for _ in range(byte_count))
     return f"{prefix[:-byte_count]}:{suffix}"
+
 
 def make_netbox_request(url, method="get", data=None, params=None):
     """
@@ -53,6 +55,7 @@ def make_netbox_request(url, method="get", data=None, params=None):
 
     return None
 
+
 def check_ip_exist_in_netbox(ip_address):
     """
     Vérifie si une adresse IP existe dans NetBox.
@@ -65,6 +68,7 @@ def check_ip_exist_in_netbox(ip_address):
     if response and response["count"] > 0:
         return True
     return False
+
 
 def create_ip_in_netbox(ip_address):
     """
@@ -81,6 +85,7 @@ def create_ip_in_netbox(ip_address):
     if response:
         logging.info(f"L'adresse IPv6 {ip_address} a été créée avec succès dans NetBox.")
 
+
 def create_loopback():
     """
     Crée une adresse loopback qui n'existe pas encore dans NetBox.
@@ -91,6 +96,7 @@ def create_loopback():
         if not check_ip_exist_in_netbox(temp_ip):
             create_ip_in_netbox(temp_ip)
             return temp_ip
+
 
 loopback = create_loopback()
 print(f"{loopback}/128")
