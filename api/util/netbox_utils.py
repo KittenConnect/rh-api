@@ -20,10 +20,10 @@ def GeneratePrefixIpV6(prefix, Byte):
     if Byte == 4:
         ipv6_address = f"{prefix[:-Byte]}:{suffix}"
     elif Byte == 5:
-         ipv6_address = f"{prefix[:-Byte]}:{suffix}:"
         ipv6_address = f"{prefix[:-Byte]}:{suffix}:"
+    else:
+        raise NotImplementedError()
     # Concaténez le préfixe et le suffixe pour former l'adresse IPv6 complète
-   
 
     return ipv6_address
 
