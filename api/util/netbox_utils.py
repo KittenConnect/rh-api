@@ -66,9 +66,25 @@ def generate_or_create_ipv6_address():
         if not checkIpinNetbox(ipv6_address):
             CreateIpinNetbox(ipv6_address)
             return ipv6_address
-## Get all the IP addresses from Prefix IPv6
-def GetAvailableAddressPrefix(prefix):
-    return true
+
+
+def get_available_address_prefix(prefix: str, length: int):
+    """
+    Get all the IP addresses from Prefix IPv6
+    :param prefix:
+    :param length:
+    :return:
+    """
+    try:
+        ipv6_network = ipaddress.IPv6Network(f"{prefix}/{length}", strict=False)
+        network_address = ipv6_network.network_address
+        network_address_str = str(network_address)
+
+        return network_address_str
+    except ValueError as e:
+        print(f"Error : {e}")
+        return None
+
 
 test = GeneratePrefixIpV6("2a13:79c0:ffff:fefe::/64", 4)  # generate loopback
 test2 = GeneratePrefixIpV6("2a13:79c0:ffff:feff::/64", 4) + "/127"  # generate prefix for wireguard
