@@ -3,11 +3,9 @@ package main
 import (
 	"encoding/json"
 	"github.com/joho/godotenv"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"os"
-	"time"
-
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func failOnError(err error, msg string) {
