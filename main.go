@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/KittenConnect/rh-api/util"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
@@ -10,27 +12,21 @@ import (
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
+		util.Err(fmt.Sprintf("%s: %s", msg, err))
 	}
 }
 
 func main() {
 	err := godotenv.Load()
-	if err != nil {
-		log.Panicf("Error loading .env file : %s", err)
-	}
+	failOnError(err, fmt.Sprintf("Error loading .env file : %s", err))
 
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
-	if err != nil {
-		log.Panicf("Failed to connect to broker : %s", err)
-	}
+	failOnError(err, fmt.Sprintf("Failed to connect to broker : %s", err))
 
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	if err != nil {
-		log.Panicf("Failed to open a channel : %s", err)
-	}
+	failOnError(err, fmt.Sprintf("Failed to open a channel : %s", err))
 
 	q, err := ch.QueueDeclare(
 		"onboarding",
@@ -40,9 +36,7 @@ func main() {
 		false,
 		nil,
 	)
-	if err != nil {
-		log.Panicf("Failed to declare a queue : %s", err)
-	}
+	failOnError(err, fmt.Sprintf("Failed to declare a queue : %s", err))
 
 	// Consommation des messages
 	msgs, err := ch.Consume(
@@ -64,7 +58,7 @@ func main() {
 			msg := model.Message{Timestamp: d.Timestamp}
 			err := json.Unmarshal(d.Body, &msg)
 			if err != nil {
-				log.Printf("Error unmarshalling message : %s", err)
+				util.Warn(fmt.Sprintf("Error unmarshalling message : %s", err))
 				continue
 			}
 
@@ -72,6 +66,6 @@ func main() {
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	util.Info(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }
