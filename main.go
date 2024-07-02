@@ -67,6 +67,7 @@ func main() {
 			err := json.Unmarshal(d.Body, &msg)
 			if err != nil {
 				log.Printf("Error unmarshalling message : %s", err)
+				continue
 			}
 
 			//Make request to the rest of API
