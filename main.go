@@ -10,13 +10,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type Message struct {
-	Hostname  string `json:"hostname"`
-	IpAddress string `json:"ipaddress"`
-
-	Timestamp time.Time `json:"-"`
-}
-
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
@@ -70,7 +63,7 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			msg := Message{Timestamp: d.Timestamp}
+			msg := model.Message{Timestamp: d.Timestamp}
 			err := json.Unmarshal(d.Body, &msg)
 			if err != nil {
 				log.Printf("Error unmarshalling message : %s", err)
