@@ -6,7 +6,6 @@ import (
 	"github.com/KittenConnect/rh-api/util"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"log"
 	"os"
 )
 
