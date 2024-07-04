@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/KittenConnect/rh-api/model"
 	"github.com/KittenConnect/rh-api/util"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -48,6 +49,16 @@ func main() {
 		nil,        // arguments
 	)
 	failOnError(err, "Failed to register a consumer")
+	util.Info("Connected to message broker")
+
+	netbox := model.NewNetbox()
+	err = netbox.Connect()
+	failOnError(err, "Failed to connect to netbox")
+
+	if netbox.IsConnected() == false {
+		util.Err("Unable to connect to netbox")
+		os.Exit(-1)
+	}
 
 	// Canal pour signaler la fin du programme
 	forever := make(chan bool)
