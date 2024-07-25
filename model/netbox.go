@@ -1,6 +1,7 @@
 package model
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 	"os"
 )
 
-var MachinesSerials map[string]string
+var MachinesSerials *list.List
 
 var (
 	NetboxVmSerialPrefix string = os.Getenv("NETBOX_VM_SERIAL_FIELD")
@@ -24,6 +25,16 @@ type Netbox struct {
 	Client *netbox.APIClient
 
 	_isConnected bool
+}
+
+func contains(list *list.List, item string) bool {
+	for e := list.Front(); e != nil; e = e.Next() {
+		if e.Value == item {
+			return true
+		}
+	}
+
+	return false
 }
 
 // NewNetbox return a fresh Netbox object
@@ -49,6 +60,8 @@ func (n Netbox) Connect() error {
 
 	n.Client = netbox.NewAPIClientFor(os.Getenv("NETBOX_API_URL"), os.Getenv("NETBOX_API_KEY"))
 	n._isConnected = true
+
+	MachinesSerials = list.New()
 
 	return nil
 }
@@ -88,6 +101,7 @@ func (n Netbox) UpdateVM(serial string, conf string) error {
 	_, exist := MachinesSerials[serial]
 	if exist {
 		return nil
+	exist := contains(MachinesSerials, msg.Serial)
 	}
 
 	res, _, err := n.Client.VirtualizationAPI.
