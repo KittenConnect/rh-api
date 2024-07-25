@@ -152,9 +152,11 @@ func (n Netbox) CreateOrUpdateVM(msg Message) error {
 	}
 
 	//Sinon on update la vm
-	err = n.UpdateVM(vmId, msg)
-	if err != nil {
-		return err
+	if !hasFoundVm {
+		err = n.UpdateVM(vmId, msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
