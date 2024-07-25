@@ -53,15 +53,30 @@ func (n Netbox) Connect() error {
 	return nil
 }
 
-func (n Netbox) CreateVM(serial string) error {
+func (n Netbox) CreateVM(msg Message) (int32, error) {
+	var (
+		id int32
+	)
+
 	if !n._isConnected {
-		return errors.New("netbox is not connected")
+		return id, errors.New("netbox is not connected")
 	}
 
-	_ = n.Client.VirtualizationAPI.VirtualizationVirtualMachinesCreate(context.Background())
+	vm := netbox.WritableVirtualMachineWithConfigContextRequest{
+		Name: msg.Hostname,
+		CustomFields: map[string]interface{}{
+			"machine_serial": msg.Serial,
+		},
+	}
 
-	//TODO
-	return nil
+	_, result, err := n.Client.VirtualizationAPI.VirtualizationVirtualMachinesCreate(n.ctx).WritableVirtualMachineWithConfigContextRequest(vm).Execute()
+	if err != nil {
+		return id, err
+	}
+
+	util.Info(fmt.Sprintf("Created machine ID : %s", result.Body))
+
+	return id, nil
 }
 
 func (n Netbox) UpdateVM(serial string, conf string) error {
