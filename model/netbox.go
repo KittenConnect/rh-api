@@ -149,10 +149,7 @@ func (n Netbox) CreateOrUpdateVM(msg Message) error {
 
 		//
 		MachinesSerials.PushBack(msg.Serial)
-	}
-
-	//Sinon on update la vm
-	if !hasFoundVm {
+	} else {
 		err = n.UpdateVM(vmId, msg)
 		if err != nil {
 			return err
