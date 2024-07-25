@@ -99,7 +99,18 @@ func (n Netbox) CreateVM(msg Message) (int32, error) {
 	return id, nil
 }
 
-func (n Netbox) UpdateVM(serial string, conf string) error {
+func (n Netbox) UpdateVM(id int32, msg Message) error {
+	vm := getVm(msg.Hostname, msg.Serial)
+
+	_, _, err := n.Client.VirtualizationAPI.
+		VirtualizationVirtualMachinesUpdate(n.ctx, id).
+		WritableVirtualMachineWithConfigContextRequest(vm).
+		Execute()
+
+	return err
+}
+
+func (n Netbox) CreateOrUpdateVM(msg Message) error {
 	if !n._isConnected {
 		return errors.New("netbox is not connected")
 	}
