@@ -113,6 +113,11 @@ func (n Netbox) UpdateVM(serial string, conf string) error {
 	if !hasFoundVm {
 		//Create VM
 		print(vmId) //TODO
+		vmId, err = n.CreateVM(msg)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
