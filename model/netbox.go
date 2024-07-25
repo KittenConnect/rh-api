@@ -84,14 +84,12 @@ func (n Netbox) CreateVM(msg Message) (int32, error) {
 		return id, errors.New("netbox is not connected")
 	}
 
-	vm := netbox.WritableVirtualMachineWithConfigContextRequest{
-		Name: msg.Hostname,
-		CustomFields: map[string]interface{}{
-			"machine_serial": msg.Serial,
-		},
-	}
+	vm := getVm(msg.Hostname, msg.Serial)
 
-	_, result, err := n.Client.VirtualizationAPI.VirtualizationVirtualMachinesCreate(n.ctx).WritableVirtualMachineWithConfigContextRequest(vm).Execute()
+	_, result, err := n.Client.VirtualizationAPI.
+		VirtualizationVirtualMachinesCreate(n.ctx).
+		WritableVirtualMachineWithConfigContextRequest(vm).
+		Execute()
 	if err != nil {
 		return id, err
 	}
