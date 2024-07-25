@@ -3,6 +3,8 @@ package model
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/KittenConnect/rh-api/util"
 	"github.com/netbox-community/go-netbox/v4"
 	"os"
 )
