@@ -66,6 +66,15 @@ func (n Netbox) Connect() error {
 	return nil
 }
 
+func getVm(name string, serial string) netbox.WritableVirtualMachineWithConfigContextRequest {
+	return netbox.WritableVirtualMachineWithConfigContextRequest{
+		Name: name,
+		CustomFields: map[string]interface{}{
+			"machine_serial": serial,
+		},
+	}
+}
+
 func (n Netbox) CreateVM(msg Message) (int32, error) {
 	var (
 		id int32
@@ -98,10 +107,35 @@ func (n Netbox) UpdateVM(serial string, conf string) error {
 	}
 
 	// Call netbox API with specific serial, then update his settings accordingly
-	_, exist := MachinesSerials[serial]
-	if exist {
-		return nil
 	exist := contains(MachinesSerials, msg.Serial)
+	if !exist {
+		//If the vm don't exist in memory, fetch his details, if she exists in netbox
+		res, _, err := n.Client.VirtualizationAPI.
+			VirtualizationVirtualMachinesList(n.ctx).
+			Execute()
+		if err != nil {
+			return err
+		}
+
+		for _, vm := range res.Results {
+			if vm.CustomFields[NetboxVmSerialPrefix] == msg.Serial {
+				vmId = vm.Id
+				hasFoundVm = true
+				break
+			}
+		}
+
+		//Create VM if she doesn't exists in netbox
+		if !hasFoundVm {
+			vmId, err = n.CreateVM(msg)
+
+			if err != nil {
+				return err
+			}
+		}
+
+		//
+		MachinesSerials.PushBack(msg.Serial)
 	}
 
 	res, _, err := n.Client.VirtualizationAPI.
