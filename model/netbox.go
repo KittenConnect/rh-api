@@ -70,7 +70,7 @@ func getVm(name string, serial string) netbox.WritableVirtualMachineWithConfigCo
 	return netbox.WritableVirtualMachineWithConfigContextRequest{
 		Name: name,
 		CustomFields: map[string]interface{}{
-			"machine_serial": serial,
+			NetboxVmSerialPrefix: serial,
 		},
 	}
 }
