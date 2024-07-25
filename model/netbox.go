@@ -115,6 +115,10 @@ func (n Netbox) CreateOrUpdateVM(msg Message) error {
 		return errors.New("netbox is not connected")
 	}
 
+	var vmId int32
+	var hasFoundVm bool = false
+	var err error
+
 	// Call netbox API with specific serial, then update his settings accordingly
 	exist := contains(MachinesSerials, msg.Serial)
 	if !exist {
@@ -147,34 +151,10 @@ func (n Netbox) CreateOrUpdateVM(msg Message) error {
 		MachinesSerials.PushBack(msg.Serial)
 	}
 
-	res, _, err := n.Client.VirtualizationAPI.
-		VirtualizationVirtualMachinesList(n.ctx).
-		//Name([]string{serial}).
-		//Limit(1).
-		Execute()
+	//Sinon on update la vm
+	err = n.UpdateVM(vmId, msg)
 	if err != nil {
 		return err
-	}
-
-	var vmId int32
-	var hasFoundVm bool = false
-
-	for _, vm := range res.Results {
-		if vm.CustomFields[NetboxVmSerialPrefix] == serial {
-			vmId = vm.Id
-			hasFoundVm = true
-			break
-		}
-	}
-
-	if !hasFoundVm {
-		//Create VM
-		print(vmId) //TODO
-		vmId, err = n.CreateVM(msg)
-
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
