@@ -73,6 +73,11 @@ func main() {
 			}
 
 			//Make request to the rest of API
+			err = netbox.CreateOrUpdateVM(msg)
+			if err != nil {
+				util.Warn(fmt.Sprintf("Error creating or updating VM : %s", err))
+				return
+			}
 		}
 	}()
 
