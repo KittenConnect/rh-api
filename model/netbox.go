@@ -149,7 +149,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 	)
 
 	//We dont have that ip registered on netbox, so lets create him
-	if req.Payload.Count == &zero {
+	if *req.Payload.Count == zero {
 		//Set ip to the interface
 		ip := models.WritableIPAddress{
 			Address:            &msg.IpAddress,
@@ -163,7 +163,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			return fmt.Errorf("error creating ip address: %w", err)
 		}
 		util.Success("\tSuccessfully created vm management ip : " + strconv.FormatInt(r.Payload.ID, 10))
-	} else if req.Payload.Count == &one {
+	} else if *req.Payload.Count == one {
 		ip := req.Payload.Results[0]
 
 		linkedInterfaceId := ip.AssignedObjectID
