@@ -28,8 +28,10 @@ func main() {
 	ch, err := conn.Channel()
 	failOnError(err, fmt.Sprintf("Failed to open a channel : %s", err))
 
+	queueName := os.Getenv("QUEUE_NAME")
+
 	q, err := ch.QueueDeclare(
-		"onboarding",
+		queueName,
 		true,
 		false,
 		false,
