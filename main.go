@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/KittenConnect/rh-api/model"
@@ -8,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"os"
+	"time"
 )
 
 func failOnError(err error, msg string) {
@@ -67,19 +69,59 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			msg := model.Message{Timestamp: d.Timestamp}
-			err := json.Unmarshal(d.Body, &msg)
-			if err != nil {
-				util.Warn(fmt.Sprintf("Error unmarshalling message : %s", err))
-				continue
-			}
+			go func() {
+				msg := model.Message{Timestamp: d.Timestamp, FailCount: 20}
+				err := json.Unmarshal(d.Body, &msg)
+				if err != nil {
+					util.Warn(fmt.Sprintf("Error unmarshalling message : %s", err))
+					return
+				}
 
-			//Make request to the rest of API
-			err = netbox.CreateOrUpdateVM(msg)
-			if err != nil {
-				util.Warn(fmt.Sprintf("Error creating or updating VM : %s", err))
-				return
-			}
+				//Make request to the rest of API
+				err = netbox.CreateOrUpdateVM(msg)
+				if err != nil {
+					util.Warn(fmt.Errorf("error creating or updating VM : %s", err).Error())
+
+					dur, _ := time.ParseDuration("10s")
+					ctx, cancel := context.WithTimeout(context.Background(), dur)
+					defer cancel()
+
+					newMsg := msg
+					newMsg.FailCount--
+
+					if newMsg.FailCount <= 0 {
+						return
+					}
+
+					newMsgJson, _ := json.Marshal(newMsg)
+
+					headers := amqp.Table{
+						"x-delay": 60000,
+					}
+
+					chErr := ch.PublishWithContext(
+						ctx,
+						"",
+						q.Name,
+						false,
+						false,
+						amqp.Publishing{
+							ContentType: "application/json",
+							Body:        newMsgJson,
+							Headers:     headers,
+						})
+
+					if chErr != nil {
+						util.Warn(fmt.Sprintf("Error re-publishing message : %s", chErr))
+					} else {
+						util.Warn(fmt.Sprintf("Re-sent message to RabbitMQ ®️ : %s", newMsgJson))
+					}
+
+					return
+				}
+
+				util.Info("Connection successfully close from " + msg.GetSerial())
+			}()
 		}
 	}()
 
