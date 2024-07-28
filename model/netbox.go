@@ -1,7 +1,6 @@
 package model
 
 import (
-	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -14,12 +13,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-)
-
-var MachinesSerials *list.List
-
-var (
-	NetboxVmSerialPrefix string = os.Getenv("NETBOX_VM_SERIAL_FIELD")
 )
 
 // Netbox structure
@@ -56,8 +49,6 @@ func (n *Netbox) Connect() error {
 
 	n.Client = netbox.NewNetboxWithAPIKey(os.Getenv("NETBOX_API_URL"), os.Getenv("NETBOX_API_TOKEN"))
 	n._isConnected = true
-
-	MachinesSerials = list.New()
 
 	return nil
 }
