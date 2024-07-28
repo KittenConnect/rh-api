@@ -216,16 +216,108 @@ func (n *Netbox) CreateVM(msg Message) error {
 func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	vm := getVm(msg)
 
-	//authContext
-
 	updateParams := &virtualization.VirtualizationVirtualMachinesPartialUpdateParams{
 		Data: &vm,
 		ID:   id,
 	}
 
-	_, err := n.Client.Virtualization.VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(time.Duration(30)*time.Second), nil)
+	//Update management IP
+	// 1. Get current interface IPs list
+	var (
+		vmId       = strconv.FormatInt(id, 10)
+		mgmtIfName = "mgmt"
+	)
 
-	return err
+	ipIfParam := virtualization.VirtualizationInterfacesListParams{
+		VirtualMachineID: &vmId,
+		Name:             &mgmtIfName,
+	}
+	interfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(&ipIfParam, nil)
+	if err != nil {
+		return fmt.Errorf("error listing virtual machine interfaces: %w", err)
+	}
+
+	// 2. If there is no interface, quit
+	var (
+		ifCount = interfaces.Payload.Count
+		one     = int64(1)
+	)
+	if ifCount != &one {
+		//No virtual interface, create one
+		var (
+			mgmtInterfaceName = "mgmt"
+		)
+
+		ifParam := models.WritableVMInterface{
+			Name:    &mgmtInterfaceName,
+			Enabled: true,
+
+			TaggedVlans: []int64{1},
+
+			VirtualMachine: &id,
+		}
+		paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam)
+		_, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
+		if err != nil {
+			return fmt.Errorf("error creating virtual machine interface: %w", err)
+		}
+
+		_, err = n.Client.Virtualization.VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(time.Duration(30)*time.Second), nil)
+		if err != nil {
+			return fmt.Errorf("error updating virtual machine interface: %w", err)
+		}
+
+		util.Info("Updated VM #" + strconv.FormatInt(id, 10) + " management interface with IP " + msg.IpAddress)
+		return nil
+	}
+
+	// 3. Get the current management IP
+	mgmtInterface := interfaces.Payload.Results[0]
+	var mgmtInterfaceId = strconv.FormatInt(mgmtInterface.ID, 10)
+	params := ipam.NewIpamIPAddressesListParams()
+	params.SetInterfaceID(&mgmtInterfaceId)
+
+	result, err := n.Client.Ipam.IpamIPAddressesList(params, nil)
+	if err != nil {
+		return fmt.Errorf("error listing ip addresses: %w", err)
+	}
+
+	var ipCount = result.Payload.Count
+	util.Info("There are actually " + strconv.FormatInt(*ipCount, 10) + " IP(s) associated with the management interface")
+
+	if *ipCount > one {
+		util.Warn("There are more than one management ip linked to the management interface")
+		return nil
+	}
+
+	if *ipCount == one {
+		util.Warn("")
+	}
+
+	ip := result.Payload.Results[0]
+	if *ip.Address == msg.IpAddress {
+		//Nothing to do
+		return nil
+	}
+
+	// 4. The management IP changed, so :
+	// - unlink the old ip and interface
+	// - set the new ip to the interface
+
+	oldIpUpdatePrams := models.WritableIPAddress{
+		AssignedObjectType: nil,
+		AssignedObjectID:   nil,
+	}
+
+	paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams)
+	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
+	if err != nil {
+		return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
+	}
+
+	util.Success("Successfully updated management ip addresses of VM #" + vmId + " with new IP : " + msg.IpAddress)
+
+	return nil
 }
 
 func (n *Netbox) CreateOrUpdateVM(msg Message) error {
