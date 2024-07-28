@@ -12,7 +12,7 @@ import (
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		util.Err(fmt.Sprintf("%s: %s", msg, err))
+		util.Err(fmt.Errorf("%s: %w", msg, err).Error())
 	}
 }
 
