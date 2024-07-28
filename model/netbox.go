@@ -27,16 +27,6 @@ type Netbox struct {
 	_isConnected bool
 }
 
-func contains(list *list.List, item string) bool {
-	for e := list.Front(); e != nil; e = e.Next() {
-		if e.Value == item {
-			return true
-		}
-	}
-
-	return false
-}
-
 // NewNetbox return a fresh Netbox object
 func NewNetbox() Netbox {
 	nbx := Netbox{
