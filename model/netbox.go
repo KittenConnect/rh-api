@@ -123,7 +123,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 		VirtualMachine: &result.Payload.ID,
 	}
-	paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam)
+	paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam).WithTimeout(time.Duration(30) * time.Second)
 	res, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
 	if err != nil {
 		return fmt.Errorf("error creating virtual machine interface: %w", err)
@@ -242,7 +242,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		ifCount = interfaces.Payload.Count
 		one     = int64(1)
 	)
-	if ifCount != &one {
+	if *ifCount != one {
 		//No virtual interface, create one
 		var (
 			mgmtInterfaceName = "mgmt"
