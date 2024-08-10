@@ -184,11 +184,11 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 		vmID := strconv.FormatInt(vmInterfaceResult.Payload.VirtualMachine.ID, 10)
 
-		nestedVmParams := virtualization.VirtualizationInterfacesListParams{
+		nestedVmParams := &virtualization.VirtualizationInterfacesListParams{
 			Name:             &mgmtInterfaceName,
 			VirtualMachineID: &vmID,
 		}
-		nestedVmInterfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(&nestedVmParams, nil)
+		nestedVmInterfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(nestedVmParams.WithTimeout(time.Duration(30)*time.Second), nil)
 		if err != nil {
 			return fmt.Errorf("error listing virtual machine interfaces: %w", err)
 		}
@@ -228,11 +228,11 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		mgmtIfName = "mgmt"
 	)
 
-	ipIfParam := virtualization.VirtualizationInterfacesListParams{
+	ipIfParam := &virtualization.VirtualizationInterfacesListParams{
 		VirtualMachineID: &vmId,
 		Name:             &mgmtIfName,
 	}
-	interfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(&ipIfParam, nil)
+	interfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(ipIfParam.WithTimeout(time.Duration(30)*time.Second), nil)
 	if err != nil {
 		return fmt.Errorf("error listing virtual machine interfaces: %w", err)
 	}
@@ -256,7 +256,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 
 			VirtualMachine: &id,
 		}
-		paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam)
+		paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam).WithTimeout(time.Duration(30) * time.Second)
 		_, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
 		if err != nil {
 			return fmt.Errorf("error creating virtual machine interface: %w", err)
@@ -309,7 +309,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		AssignedObjectID:   nil,
 	}
 
-	paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams)
+	paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams).WithTimeout(time.Duration(30) * time.Second)
 	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
 	if err != nil {
 		return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
