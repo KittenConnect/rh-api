@@ -20,7 +20,10 @@ jobs:
           go-version: '1.22.4'
 
       - name: Build
-        run: go build -v ./...
+        run: go build -o rh-api -v ./...
+        
+      - name: debug
+        run: ls -lah
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
