@@ -334,7 +334,7 @@ func (n *Netbox) CreateOrUpdateVM(msg Message) error {
 	//if !exist {
 	//If the vm don't exist in memory, fetch his details, if she exists in netbox
 	req := virtualization.
-		NewVirtualizationVirtualMachinesListParams()
+		NewVirtualizationVirtualMachinesListParams().WithTimeout(time.Duration(30) * time.Second)
 	res, err := n.Client.Virtualization.VirtualizationVirtualMachinesList(req, nil)
 	if err != nil {
 		return fmt.Errorf("unable to get list of machines from netbox: %w", err)
