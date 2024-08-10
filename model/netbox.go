@@ -119,7 +119,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		Name:    &mgmtInterfaceName,
 		Enabled: true,
 
-		TaggedVlans: []int64{1},
+		TaggedVlans: []int64{},
 
 		VirtualMachine: &result.Payload.ID,
 	}
@@ -252,7 +252,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 			Name:    &mgmtInterfaceName,
 			Enabled: true,
 
-			TaggedVlans: []int64{1},
+			TaggedVlans: []int64{},
 
 			VirtualMachine: &id,
 		}
