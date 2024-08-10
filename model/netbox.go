@@ -70,15 +70,20 @@ func getVm(m Message) models.WritableVirtualMachineWithConfigContext {
 	}
 }
 
-func (n *Netbox) changeIPInterface(msg Message, ifId int64, objectType string) error {
-	ip := models.WritableIPAddress{
-		Address:            &msg.IpAddress,
-		AssignedObjectID:   &ifId,
-		AssignedObjectType: &objectType,
-		Status:             models.IPAddressStatusValueActive,
+func (n *Netbox) getIpAddress(ip string) *models.WritableIPAddress {
+	return &models.WritableIPAddress{
+		Address: &ip,
+		Status:  models.IPAddressStatusValueActive,
 	}
+}
+
+func (n *Netbox) changeIPInterface(msg Message, ifId int64, objectType string) error {
+	ip := n.getIpAddress(msg.IpAddress)
+	ip.AssignedObjectID = &ifId
+	ip.AssignedObjectType = &objectType
+
 	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
-		Data: &ip,
+		Data: ip,
 	}
 
 	_, err := n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithTimeout(time.Duration(30)*time.Second), nil)
@@ -241,6 +246,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	var (
 		ifCount = interfaces.Payload.Count
 		one     = int64(1)
+		zero    = int64(0)
 	)
 	if *ifCount != one {
 		//No virtual interface, create one
@@ -286,36 +292,77 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	util.Info("There are actually " + strconv.FormatInt(*ipCount, 10) + " IP(s) associated with the management interface")
 
 	if *ipCount > one {
-		util.Warn("There are more than one management ip linked to the management interface")
-		return nil
+		return errors.New("there are more than one management ip linked to the management interface")
 	}
 
 	if *ipCount == one {
-		util.Warn("")
-	}
+		ip := result.Payload.Results[0]
+		if *ip.Address == msg.IpAddress {
+			//Nothing to do
+			return nil
+		}
 
-	ip := result.Payload.Results[0]
-	if *ip.Address == msg.IpAddress {
-		//Nothing to do
+		// 4. The management IP changed, so :
+		// - unlink the old ip and interface
+		// - set the new ip to the interface
+
+		oldIpUpdatePrams := models.WritableIPAddress{
+			AssignedObjectType: nil,
+			AssignedObjectID:   nil,
+		}
+
+		paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams).WithTimeout(time.Duration(30) * time.Second)
+		_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
+		if err != nil {
+			return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
+		}
+
+		util.Success("Successfully updated management ip addresses of VM #" + vmId + " with new IP : " + msg.IpAddress)
 		return nil
 	}
 
-	// 4. The management IP changed, so :
-	// - unlink the old ip and interface
-	// - set the new ip to the interface
-
-	oldIpUpdatePrams := models.WritableIPAddress{
-		AssignedObjectType: nil,
-		AssignedObjectID:   nil,
-	}
-
-	paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams).WithTimeout(time.Duration(30) * time.Second)
-	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
+	// 5. No existing IP, but verify that she doesn't already exist in the netbox
+	ipSearchParams := ipam.NewIpamIPAddressesListParams()
+	result, err = n.Client.Ipam.IpamIPAddressesList(ipSearchParams, nil)
 	if err != nil {
-		return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
+		return fmt.Errorf("error listing existing ip addresses: %w", err)
 	}
 
-	util.Success("Successfully updated management ip addresses of VM #" + vmId + " with new IP : " + msg.IpAddress)
+	existingIpCount := result.Payload.Count
+	newIpAddrId := int64(0)
+	if *existingIpCount == zero {
+		util.Info("There is no IP registered in the netbox. Create him.")
+
+		newIp := &ipam.IpamIPAddressesCreateParams{
+			Data: &models.WritableIPAddress{
+				Address:          &msg.IpAddress,
+				AssignedObjectID: &mgmtInterface.ID,
+			},
+		}
+		r, err := n.Client.Ipam.IpamIPAddressesCreate(newIp, nil)
+		if err != nil {
+			return fmt.Errorf("error creating ip address: %w", err)
+		}
+
+		newIpAddrId = r.Payload.ID
+	} else {
+		newIpAddrId = result.Payload.Results[0].ID
+	}
+
+	var ipType = "virtualization.vminterface"
+
+	ip := n.getIpAddress(msg.IpAddress)
+	ip.ID = newIpAddrId
+	ip.AssignedObjectID = &mgmtInterface.ID
+	ip.AssignedObjectType = &ipType
+
+	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
+		Data: ip,
+	}
+	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithTimeout(time.Duration(30)*time.Second), nil)
+	if err != nil {
+		return fmt.Errorf("error updating ip address: %w", err)
+	}
 
 	return nil
 }
