@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"fmt"
 	"github.com/KittenConnect/rh-api/model"
 	"github.com/KittenConnect/rh-api/util"
@@ -17,6 +18,9 @@ func failOnError(err error, msg string) {
 		util.Err(fmt.Errorf("%s: %w", msg, err).Error())
 	}
 }
+
+var RETRY_DELAY = 5
+
 
 func main() {
 	err := godotenv.Load()
@@ -33,6 +37,12 @@ func main() {
 	incomingQueue := os.Getenv("RABBITMQ_INCOMING_QUEUE")
 	outcomingQueue := os.Getenv("RABBITMQ_OUTGOING_QUEUE")
 
+	if value, ok := os.LookupEnv("RABBITMQ_RETRY_DELAY"); ok {
+		if i, err := strconv.Atoi(value); err == nil {
+			RETRY_DELAY = i
+		}
+    	}
+
 	q, err := ch.QueueDeclare(
 		incomingQueue,
 		true,
@@ -43,6 +53,10 @@ func main() {
 	)
 	failOnError(err, fmt.Sprintf("Failed to declare a queue : %s", err))
 
+        exchangeArgs := map[string]interface{}{
+		"x-delayed-type": "direct",
+        }
+
 	err = ch.ExchangeDeclare(
 		incomingQueue,
 		"x-delayed-message",
@@ -50,9 +64,17 @@ func main() {
 		false,
 		false,
 		false,
-		nil,
+		exchangeArgs,
 	)
 	failOnError(err, fmt.Sprintf("Failed to declare an exchange : %s", err))
+
+        err = ch.QueueBind(
+                incomingQueue,        // queue name
+                incomingQueue,             // routing key
+                incomingQueue, // exchange
+                false,
+                nil)
+	failOnError(err, fmt.Sprintf("Failed to bind queue: %s", err))
 
 	// Consommation des messages
 	msgs, err := ch.Consume(
@@ -108,7 +130,7 @@ func main() {
 					newMsgJson, _ := json.Marshal(newMsg)
 
 					headers := amqp.Table{
-						"x-delay": 60000,
+						"x-delay": RETRY_DELAY * 1000,
 					}
 
 					chErr := ch.PublishWithContext(
@@ -156,7 +178,7 @@ func main() {
 				if chErr != nil {
 					util.Warn(fmt.Sprintf("Error publishing success message : %s", chErr))
 				} else {
-					util.Warn(fmt.Sprintf("sent success message to RabbitMQ ®️ : %s", newMsgJson))
+					util.Success(fmt.Sprintf("sent success message to RabbitMQ ®️ : %s", newMsgJson))
 				}
 			}()
 		}
