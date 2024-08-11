@@ -59,7 +59,7 @@ func (n *Netbox) GetDefaultTimeout() time.Duration {
 
 func getVm(m Message) models.WritableVirtualMachineWithConfigContext {
 	var (
-		status        = "active"
+		status        = "planned"
 		cluster int64 = 1
 	)
 
