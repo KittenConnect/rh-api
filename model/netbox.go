@@ -81,8 +81,8 @@ func (n *Netbox) getIpAddress(ip string) *models.WritableIPAddress {
 	}
 }
 
-func (n *Netbox) changeIPInterface(msg Message, ifId int64, objectType string) error {
-	ip := n.getIpAddress(msg.IpAddress)
+func (n *Netbox) changeIPInterface(address string, ifId int64, objectType string) error {
+	ip := n.getIpAddress(address)
 	ip.AssignedObjectID = &ifId
 	ip.AssignedObjectType = &objectType
 
@@ -204,7 +204,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		//Si l'ip n'est pas liée à une interface
 		//On l'assigne à l'interface de la machine et zou
 		if linkedInterfaceId == nil {
-			return n.changeIPInterface(msg, ifId, objectType)
+			return n.changeIPInterface(msg.IpAddress, ifId, objectType)
 		}
 
 		//Sinon on vérifie sie la VM possède d'autres IP sur l'interface de management
@@ -236,7 +236,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			//L'interface possède d'autres IPs
 			//Du coup, on prend l'ip en question
 			util.Info("Remove the link ...")
-			err := n.changeIPInterface(msg, ifId, objectType)
+			err := n.changeIPInterface(msg.IpAddress, ifId, objectType)
 			if err != nil {
 				return err
 			}
