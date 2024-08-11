@@ -91,36 +91,7 @@ func main() {
 
 				//Make request to the rest of API
 				err = netbox.CreateOrUpdateVM(msg)
-				if err == nil {
-					util.Success(fmt.Sprintf("VM up to date %s", msg.Hostname))
-
-					dur, _ := time.ParseDuration("10s")
-					ctx, cancel := context.WithTimeout(context.Background(), dur)
-					defer cancel()
-
-					newMsg := msg
-
-					newMsgJson, _ := json.Marshal(newMsg)
-
-					chErr := ch.PublishWithContext(
-						ctx,
-						"",
-						q.Name,
-						false,
-						false,
-						amqp.Publishing{
-							ContentType: "application/json",
-							Body:        newMsgJson,
-						})
-
-					if chErr != nil {
-						util.Warn(fmt.Sprintf("Error re-publishing message : %s", chErr))
-					} else {
-						util.Warn(fmt.Sprintf("Re-sent message to RabbitMQ ®️ : %s", newMsgJson))
-					}
-
-					return
-				} else {
+				if err != nil {
 					util.Warn(fmt.Errorf("error creating or updating VM : %w", err).Error())
 
 					dur, _ := time.ParseDuration("10s")
@@ -142,7 +113,7 @@ func main() {
 
 					chErr := ch.PublishWithContext(
 						ctx,
-						"",
+						incomingQueue,
 						q.Name,
 						false,
 						false,
@@ -159,6 +130,33 @@ func main() {
 					}
 
 					return
+				}
+
+				util.Success(fmt.Sprintf("VM up to date %s", msg.Hostname))
+
+				dur, _ := time.ParseDuration("10s")
+				ctx, cancel := context.WithTimeout(context.Background(), dur)
+				defer cancel()
+
+				newMsg := msg
+
+				newMsgJson, _ := json.Marshal(newMsg)
+
+				chErr := ch.PublishWithContext(
+					ctx,
+					"",
+					outcomingQueue,
+					false,
+					false,
+					amqp.Publishing{
+						ContentType: "application/json",
+						Body:        newMsgJson,
+					})
+
+				if chErr != nil {
+					util.Warn(fmt.Sprintf("Error publishing success message : %s", chErr))
+				} else {
+					util.Warn(fmt.Sprintf("sent success message to RabbitMQ ®️ : %s", newMsgJson))
 				}
 			}()
 		}
