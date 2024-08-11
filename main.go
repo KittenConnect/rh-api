@@ -31,9 +31,10 @@ func main() {
 	failOnError(err, fmt.Sprintf("Failed to open a channel : %s", err))
 
 	queueName := os.Getenv("QUEUE_NAME")
+	incomingQueue := os.Getenv("RABBITMQ_INCOMING_QUEUE")
 
 	q, err := ch.QueueDeclare(
-		queueName,
+		incomingQueue,
 		true,
 		false,
 		false,
