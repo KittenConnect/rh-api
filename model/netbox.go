@@ -125,7 +125,6 @@ func (n *Netbox) CreateIP(address string, status string, linkedObjectId int64, l
 }
 
 func (n *Netbox) CreateVM(msg Message) error {
-
 	if !n._isConnected {
 		return errors.New("netbox is not connected")
 	}
@@ -186,8 +185,8 @@ func (n *Netbox) CreateVM(msg Message) error {
 		one  = int64(1)
 	)
 
-	util.Info(fmt.Sprintf("Found #%d IPs in %v", *req.Payload.Count, *req))	
-	//We dont have that ip registered on netbox, so lets create him
+	util.Info(fmt.Sprintf("Found #%d IPs in %v", *req.Payload.Count, *req))
+	//We don't have that ip registered on netbox, so let's create him
 	if *req.Payload.Count == zero {
 		//Set ip to the interface
 		createdIP, err := n.CreateIP(msg.IpAddress, models.IPAddressStatusValueActive, ifId, objectType)
@@ -207,7 +206,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			return n.changeIPInterface(msg.IpAddress, ifId, objectType)
 		}
 
-		//Sinon on vérifie sie la VM possède d'autres IP sur l'interface de management
+		//Sinon on vérifie si la VM possède d'autres IP sur l'interface de management
 		interfaceId := *linkedInterfaceId
 		vmInterfaceParam := virtualization.
 			NewVirtualizationInterfacesReadParams().
@@ -243,7 +242,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 			util.Success("IP changed of interface")
 
 			return nil
-		} //Sinon on laisse l'ip sur la VM
+		} else {
+			//Sinon on laisse l'ip sur la VM
+			util.Info(fmt.Sprintf("L'IP %s reste sur l'interface n°%d", msg.IpAddress, mgmtInterface.ID))
+		}
 
 		util.Warn("Trying to using existing IP on VM interface #" + strconv.FormatInt(mgmtInterface.ID, 10))
 	}
@@ -327,7 +329,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	}
 
 	var ipCount = result.Payload.Count
-	util.Info("There are actually " + strconv.FormatInt(*ipCount, 10) + " IP(s) associated with the management interface")
+	util.Info(fmt.Sprintf("There are actually %d IP(s) associated with the management interface", ipCount))
 
 	if *ipCount > one {
 		return errors.New("there are more than one management ip linked to the management interface")
@@ -345,7 +347,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		// - set the new ip to the interface
 
 		oldIpUpdatePrams := models.WritableIPAddress{
-			Address: &msg.IpAddress,
+			Address:            &msg.IpAddress,
 			AssignedObjectType: nil,
 			AssignedObjectID:   nil,
 		}
@@ -379,8 +381,8 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		var ipType = "virtualization.vminterface"
 		newIp := &ipam.IpamIPAddressesCreateParams{
 			Data: &models.WritableIPAddress{
-				Address:          &msg.IpAddress,
-				AssignedObjectID: &mgmtInterface.ID,
+				Address:            &msg.IpAddress,
+				AssignedObjectID:   &mgmtInterface.ID,
 				AssignedObjectType: &ipType,
 			},
 		}
