@@ -91,8 +91,37 @@ func main() {
 
 				//Make request to the rest of API
 				err = netbox.CreateOrUpdateVM(msg)
-				if err != nil {
-					util.Warn(fmt.Errorf("error creating or updating VM : %s", err).Error())
+				if err == nil {
+					util.Success(fmt.Sprintf("VM up to date %s", msg.Hostname))
+
+					dur, _ := time.ParseDuration("10s")
+					ctx, cancel := context.WithTimeout(context.Background(), dur)
+					defer cancel()
+
+					newMsg := msg
+
+					newMsgJson, _ := json.Marshal(newMsg)
+
+					chErr := ch.PublishWithContext(
+						ctx,
+						"",
+						q.Name,
+						false,
+						false,
+						amqp.Publishing{
+							ContentType: "application/json",
+							Body:        newMsgJson,
+						})
+
+					if chErr != nil {
+						util.Warn(fmt.Sprintf("Error re-publishing message : %s", chErr))
+					} else {
+						util.Warn(fmt.Sprintf("Re-sent message to RabbitMQ ®️ : %s", newMsgJson))
+					}
+
+					return
+				} else {
+					util.Warn(fmt.Errorf("error creating or updating VM : %w", err).Error())
 
 					dur, _ := time.ParseDuration("10s")
 					ctx, cancel := context.WithTimeout(context.Background(), dur)
@@ -131,8 +160,6 @@ func main() {
 
 					return
 				}
-
-				util.Info("Connection successfully close from " + msg.GetSerial())
 			}()
 		}
 	}()
