@@ -309,6 +309,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		// - set the new ip to the interface
 
 		oldIpUpdatePrams := models.WritableIPAddress{
+			Address: &msg.IpAddress,
 			AssignedObjectType: nil,
 			AssignedObjectID:   nil,
 		}
