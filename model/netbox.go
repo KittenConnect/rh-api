@@ -329,7 +329,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	}
 
 	var ipCount = result.Payload.Count
-	util.Info(fmt.Sprintf("There are actually %d IP(s) associated with the management interface", ipCount))
+	util.Info(fmt.Sprintf("There are actually %s IP(s) associated with the management interface", strconv.FormatInt(*ipCount, 10)))
 
 	if *ipCount > one {
 		return errors.New("there are more than one management ip linked to the management interface")
