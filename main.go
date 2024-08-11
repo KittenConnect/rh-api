@@ -30,8 +30,8 @@ func main() {
 	ch, err := conn.Channel()
 	failOnError(err, fmt.Sprintf("Failed to open a channel : %s", err))
 
-	queueName := os.Getenv("QUEUE_NAME")
 	incomingQueue := os.Getenv("RABBITMQ_INCOMING_QUEUE")
+	outcomingQueue := os.Getenv("RABBITMQ_OUTGOING_QUEUE")
 
 	q, err := ch.QueueDeclare(
 		incomingQueue,
@@ -42,6 +42,17 @@ func main() {
 		nil,
 	)
 	failOnError(err, fmt.Sprintf("Failed to declare a queue : %s", err))
+
+	err = ch.ExchangeDeclare(
+		incomingQueue,
+		"x-delayed-message",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	failOnError(err, fmt.Sprintf("Failed to declare an exchange : %s", err))
 
 	// Consommation des messages
 	msgs, err := ch.Consume(
