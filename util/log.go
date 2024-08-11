@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-func Err(t string) {
+func Err(s string, v ...any) {
 	red := color.New(color.FgRed).SprintFunc()
-	fmt.Printf("%s %s\n", red("[ERROR]"), red(t))
+	fmt.Printf(fmt.Sprintf(red("%s %s\n"), "[ERROR]", s), v...)
 	os.Exit(-1)
 }
 

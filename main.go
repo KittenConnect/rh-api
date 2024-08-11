@@ -3,47 +3,46 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"fmt"
 	"github.com/KittenConnect/rh-api/model"
 	"github.com/KittenConnect/rh-api/util"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"os"
+	"strconv"
 	"time"
 )
 
-func failOnError(err error, msg string) {
+func failWithError(err error, formatString string, args ...any) {
 	if err != nil {
-		util.Err(fmt.Errorf("%s: %w", msg, err).Error())
+		util.Err(fmt.Errorf(fmt.Sprintf("%s: %w",formatString), append(args, err)...).Error())
 	}
 }
 
 var RETRY_DELAY = 5
 
-
 func main() {
 	err := godotenv.Load()
-	failOnError(err, fmt.Sprintf("Error loading .env file : %s", err))
+	failWithError(err, "Error loading .env file")
 
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
-	failOnError(err, fmt.Sprintf("Failed to connect to broker : %s", err))
+	failWithError(err, "Failed to connect to broker")
 
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	failOnError(err, fmt.Sprintf("Failed to open a channel : %s", err))
+	failWithError(err, "Failed to open a channel")
 
 	incomingQueue := os.Getenv("RABBITMQ_INCOMING_QUEUE")
-	outcomingQueue := os.Getenv("RABBITMQ_OUTGOING_QUEUE")
+	outgoingQueue := os.Getenv("RABBITMQ_OUTGOING_QUEUE")
 
 	if value, ok := os.LookupEnv("RABBITMQ_RETRY_DELAY"); ok {
 		if i, err := strconv.Atoi(value); err == nil {
 			RETRY_DELAY = i
 		}
-    	}
+	}
 
-	q, err := ch.QueueDeclare(
+	inQ, err := ch.QueueDeclare(
 		incomingQueue,
 		true,
 		false,
@@ -51,11 +50,21 @@ func main() {
 		false,
 		nil,
 	)
-	failOnError(err, fmt.Sprintf("Failed to declare a queue : %s", err))
+	failWithError(err, "Failed to declare queue %s", incomingQueue)
 
-        exchangeArgs := map[string]interface{}{
+	outQ, err := ch.QueueDeclare(
+		outgoingQueue,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	failWithError(err, "Failed to declare queue %s", outgoingQueue)
+
+	exchangeArgs := map[string]interface{}{
 		"x-delayed-type": "direct",
-        }
+	}
 
 	err = ch.ExchangeDeclare(
 		incomingQueue,
@@ -66,19 +75,19 @@ func main() {
 		false,
 		exchangeArgs,
 	)
-	failOnError(err, fmt.Sprintf("Failed to declare an exchange : %s", err))
+	failWithError(err, "Failed to declare exchange %s", incomingQueue)
 
-        err = ch.QueueBind(
-                incomingQueue,        // queue name
-                incomingQueue,             // routing key
-                incomingQueue, // exchange
-                false,
-                nil)
-	failOnError(err, fmt.Sprintf("Failed to bind queue: %s", err))
+	err = ch.QueueBind(
+		incomingQueue, // queue name
+		incomingQueue, // routing key
+		incomingQueue, // exchange
+		false,
+		nil)
+	failWithError(err, "Failed to bind queue %s to exchange %s", incomingQueue, incomingQueue)
 
 	// Consommation des messages
 	msgs, err := ch.Consume(
-		q.Name,     // nom de la queue
+		inQ.Name,   // nom de la queue
 		"consumer", // consumer
 		true,       // autoAck
 		false,      // exclusive
@@ -86,12 +95,12 @@ func main() {
 		false,      // noWait
 		nil,        // arguments
 	)
-	failOnError(err, "Failed to register a consumer")
+	failWithError(err, "Failed to register %s consumer", inQ.Name)
 	util.Info("Connected to message broker")
 
 	netbox := model.NewNetbox()
 	err = netbox.Connect()
-	failOnError(err, "Failed to connect to netbox")
+	failWithError(err, "Failed to connect to netbox")
 
 	if netbox.IsConnected() == false {
 		util.Err("Unable to connect to netbox")
@@ -136,7 +145,7 @@ func main() {
 					chErr := ch.PublishWithContext(
 						ctx,
 						incomingQueue,
-						q.Name,
+						inQ.Name,
 						false,
 						false,
 						amqp.Publishing{
@@ -167,7 +176,7 @@ func main() {
 				chErr := ch.PublishWithContext(
 					ctx,
 					"",
-					outcomingQueue,
+					outQ.Name,
 					false,
 					false,
 					amqp.Publishing{
