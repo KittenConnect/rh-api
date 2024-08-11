@@ -53,6 +53,10 @@ func (n *Netbox) Connect() error {
 	return nil
 }
 
+func (n *Netbox) GetDefaultTimeout() time.Duration {
+	return time.Duration(30) * time.Second
+}
+
 func getVm(m Message) models.WritableVirtualMachineWithConfigContext {
 	var (
 		status        = "active"
@@ -86,7 +90,9 @@ func (n *Netbox) changeIPInterface(msg Message, ifId int64, objectType string) e
 		Data: ip,
 	}
 
-	_, err := n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).WithTimeout(time.Duration(30)*time.Second), nil)
+	_, err := n.Client.Ipam.
+		IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).
+			WithTimeout(n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return fmt.Errorf("error updating ip address: %w", err)
 	}
@@ -128,7 +134,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 		VirtualMachine: &result.Payload.ID,
 	}
-	paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam).WithTimeout(time.Duration(30) * time.Second)
+	paramInterface := virtualization.
+		NewVirtualizationInterfacesCreateParams().
+		WithData(&ifParam).
+		WithTimeout(n.GetDefaultTimeout())
 	res, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
 	if err != nil {
 		return fmt.Errorf("error creating virtual machine interface: %w", err)
@@ -144,7 +153,8 @@ func (n *Netbox) CreateVM(msg Message) error {
 	ipAlreadyExist := &ipam.IpamIPAddressesListParams{
 		Address: &msg.IpAddress,
 	}
-	req, err := n.Client.Ipam.IpamIPAddressesList(ipAlreadyExist.WithTimeout(time.Duration(30) * time.Second), nil)
+	req, err := n.Client.Ipam.
+		IpamIPAddressesList(ipAlreadyExist.WithTimeout(n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return fmt.Errorf("error checking ip addresses existance : %w", err)
 	}
@@ -182,7 +192,11 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 		//Sinon on vérifie sie la VM possède d'autres IP sur l'interface de management
 		interfaceId := *linkedInterfaceId
-		vmInterfaceParam := virtualization.NewVirtualizationInterfacesReadParams().WithID(interfaceId)
+		vmInterfaceParam := virtualization.
+			NewVirtualizationInterfacesReadParams().
+			WithID(interfaceId).
+			WithTimeout(n.GetDefaultTimeout())
+
 		vmInterfaceResult, err := n.Client.Virtualization.VirtualizationInterfacesRead(vmInterfaceParam, nil)
 		if err != nil {
 			return fmt.Errorf("error reading virtual machine interface: %w", err)
@@ -194,7 +208,8 @@ func (n *Netbox) CreateVM(msg Message) error {
 			Name:             &mgmtInterfaceName,
 			VirtualMachineID: &vmID,
 		}
-		nestedVmInterfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(nestedVmParams.WithTimeout(time.Duration(30)*time.Second), nil)
+		nestedVmInterfaces, err := n.Client.Virtualization.
+			VirtualizationInterfacesList(nestedVmParams.WithTimeout(n.GetDefaultTimeout()), nil)
 		if err != nil {
 			return fmt.Errorf("error listing virtual machine interfaces: %w", err)
 		}
@@ -238,7 +253,8 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		VirtualMachineID: &vmId,
 		Name:             &mgmtIfName,
 	}
-	interfaces, err := n.Client.Virtualization.VirtualizationInterfacesList(ipIfParam.WithTimeout(time.Duration(30)*time.Second), nil)
+	interfaces, err := n.Client.Virtualization.
+		VirtualizationInterfacesList(ipIfParam.WithTimeout(n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return fmt.Errorf("error listing virtual machine interfaces: %w", err)
 	}
@@ -263,13 +279,16 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 
 			VirtualMachine: &id,
 		}
-		paramInterface := virtualization.NewVirtualizationInterfacesCreateParams().WithData(&ifParam).WithTimeout(time.Duration(30) * time.Second)
+		paramInterface := virtualization.
+			NewVirtualizationInterfacesCreateParams().
+			WithData(&ifParam).WithTimeout(n.GetDefaultTimeout())
 		_, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
 		if err != nil {
 			return fmt.Errorf("error creating virtual machine interface: %w", err)
 		}
 
-		_, err = n.Client.Virtualization.VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(time.Duration(30)*time.Second), nil)
+		_, err = n.Client.Virtualization.
+			VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(n.GetDefaultTimeout()), nil)
 		if err != nil {
 			return fmt.Errorf("error updating virtual machine interface: %w", err)
 		}
@@ -314,7 +333,11 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 			AssignedObjectID:   nil,
 		}
 
-		paramUnlinkOldIp := ipam.NewIpamIPAddressesPartialUpdateParams().WithID(ip.ID).WithData(&oldIpUpdatePrams).WithTimeout(time.Duration(30) * time.Second)
+		paramUnlinkOldIp := ipam.
+			NewIpamIPAddressesPartialUpdateParams().
+			WithID(ip.ID).
+			WithData(&oldIpUpdatePrams).
+			WithTimeout(n.GetDefaultTimeout())
 		_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
 		if err != nil {
 			return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
@@ -344,7 +367,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 				AssignedObjectType: &ipType,
 			},
 		}
-		r, err := n.Client.Ipam.IpamIPAddressesCreate(newIp.WithTimeout(time.Duration(30) * time.Second), nil)
+		r, err := n.Client.Ipam.IpamIPAddressesCreate(newIp.WithTimeout(n.GetDefaultTimeout()), nil)
 		if err != nil {
 			return fmt.Errorf("error creating ip address: %w", err)
 		}
@@ -364,7 +387,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
 		Data: ip,
 	}
-	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithTimeout(time.Duration(30)*time.Second), nil)
+	_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithTimeout(n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return fmt.Errorf("error updating ip address: %w", err)
 	}
@@ -386,7 +409,8 @@ func (n *Netbox) CreateOrUpdateVM(msg Message) error {
 	//if !exist {
 	//If the vm don't exist in memory, fetch his details, if she exists in netbox
 	req := virtualization.
-		NewVirtualizationVirtualMachinesListParams().WithTimeout(time.Duration(30) * time.Second)
+		NewVirtualizationVirtualMachinesListParams().
+		WithTimeout(n.GetDefaultTimeout())
 	res, err := n.Client.Virtualization.VirtualizationVirtualMachinesList(req, nil)
 	if err != nil {
 		return fmt.Errorf("unable to get list of machines from netbox: %w", err)
