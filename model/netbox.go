@@ -86,7 +86,7 @@ func (n *Netbox) changeIPInterface(msg Message, ifId int64, objectType string) e
 		Data: ip,
 	}
 
-	_, err := n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithTimeout(time.Duration(30)*time.Second), nil)
+	_, err := n.Client.Ipam.IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).WithTimeout(time.Duration(30)*time.Second), nil)
 	if err != nil {
 		return fmt.Errorf("error updating ip address: %w", err)
 	}
@@ -153,6 +153,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		one  = int64(1)
 	)
 
+	util.Info(fmt.Sprintf("Found #%d IPs in %v", *req.Payload.Count, *req))	
 	//We dont have that ip registered on netbox, so lets create him
 	if *req.Payload.Count == zero {
 		//Set ip to the interface
@@ -199,7 +200,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		}
 
 		mgmtInterface := nestedVmInterfaces.Payload.Results[0]
-		if mgmtInterface.CountIpaddresses > 1 {
+		if mgmtInterface.CountIpaddresses == 1 {
 			//L'interface possède d'autres IPs
 			//Du coup, on prend l'ip en question
 			util.Info("Remove the link ...")
@@ -248,7 +249,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		one     = int64(1)
 		zero    = int64(0)
 	)
-	if *ifCount != one {
+	if *ifCount < one {
 		//No virtual interface, create one
 		var (
 			mgmtInterfaceName = "mgmt"
@@ -281,7 +282,8 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	mgmtInterface := interfaces.Payload.Results[0]
 	var mgmtInterfaceId = strconv.FormatInt(mgmtInterface.ID, 10)
 	params := ipam.NewIpamIPAddressesListParams()
-	params.SetInterfaceID(&mgmtInterfaceId)
+	params.SetVminterfaceID(&mgmtInterfaceId)
+	util.Info(fmt.Sprintf("Found MGMT Iface #%d -> %s", mgmtInterface.ID, mgmtInterfaceId))
 
 	result, err := n.Client.Ipam.IpamIPAddressesList(params, nil)
 	if err != nil {
@@ -323,6 +325,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 
 	// 5. No existing IP, but verify that she doesn't already exist in the netbox
 	ipSearchParams := ipam.NewIpamIPAddressesListParams()
+	ipSearchParams.Q = &msg.IpAddress
 	result, err = n.Client.Ipam.IpamIPAddressesList(ipSearchParams, nil)
 	if err != nil {
 		return fmt.Errorf("error listing existing ip addresses: %w", err)
@@ -332,14 +335,15 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	newIpAddrId := int64(0)
 	if *existingIpCount == zero {
 		util.Info("There is no IP registered in the netbox. Create him.")
-
+		var ipType = "virtualization.vminterface"
 		newIp := &ipam.IpamIPAddressesCreateParams{
 			Data: &models.WritableIPAddress{
 				Address:          &msg.IpAddress,
 				AssignedObjectID: &mgmtInterface.ID,
+				AssignedObjectType: &ipType,
 			},
 		}
-		r, err := n.Client.Ipam.IpamIPAddressesCreate(newIp, nil)
+		r, err := n.Client.Ipam.IpamIPAddressesCreate(newIp.WithTimeout(time.Duration(30) * time.Second), nil)
 		if err != nil {
 			return fmt.Errorf("error creating ip address: %w", err)
 		}
