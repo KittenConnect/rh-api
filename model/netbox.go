@@ -141,10 +141,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 	)
 
 	//Verify if ip already exists
-	ipAlreadyExist := ipam.IpamIPAddressesListParams{
+	ipAlreadyExist := &ipam.IpamIPAddressesListParams{
 		Address: &msg.IpAddress,
 	}
-	req, err := n.Client.Ipam.IpamIPAddressesList(&ipAlreadyExist, nil)
+	req, err := n.Client.Ipam.IpamIPAddressesList(ipAlreadyExist.WithTimeout(time.Duration(30) * time.Second), nil)
 	if err != nil {
 		return fmt.Errorf("error checking ip addresses existance : %w", err)
 	}
