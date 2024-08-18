@@ -141,7 +141,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		return fmt.Errorf("error creating virtual machine: %w", err)
 	}
 
-	util.Success(fmt.Sprintf("Created machine ID : %d", result.Payload.ID))
+	util.Success("Created machine ID: %d", result.Payload.ID)
 
 	//Create management interface
 	var (
@@ -164,7 +164,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 	if err != nil {
 		return fmt.Errorf("error creating virtual machine interface: %w", err)
 	}
-	util.Success("\tSuccessfully created vm interface " + strconv.FormatInt(res.Payload.ID, 10))
+	util.Success("\tSuccessfully created vm interface %s", strconv.FormatInt(res.Payload.ID, 10))
 
 	var (
 		ifId       = res.Payload.ID
@@ -185,7 +185,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		one  = int64(1)
 	)
 
-	util.Info(fmt.Sprintf("Found #%d IPs in %v", *req.Payload.Count, *req))
+	util.Info("Found #%d IPs in %v", *req.Payload.Count, *req)
 	//We don't have that ip registered on netbox, so let's create him
 	if *req.Payload.Count == zero {
 		//Set ip to the interface
@@ -194,7 +194,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			return err
 		}
 
-		util.Success("\tSuccessfully created vm management ip : " + strconv.FormatInt(createdIP.Payload.ID, 10))
+		util.Success("\tSuccessfully created vm management ip: %s", strconv.FormatInt(createdIP.Payload.ID, 10))
 	} else if *req.Payload.Count == one {
 		ip := req.Payload.Results[0]
 
@@ -244,10 +244,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 			return nil
 		} else {
 			//Sinon on laisse l'ip sur la VM
-			util.Info(fmt.Sprintf("L'IP %s reste sur l'interface n°%d", msg.IpAddress, mgmtInterface.ID))
+			util.Info("L'IP %s reste sur l'interface n°%d", msg.IpAddress, mgmtInterface.ID)
 		}
 
-		util.Warn("Trying to using existing IP on VM interface #" + strconv.FormatInt(mgmtInterface.ID, 10))
+		util.Warn("Trying to using existing IP on VM interface #%s", strconv.FormatInt(mgmtInterface.ID, 10))
 	}
 
 	return nil
@@ -321,7 +321,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	var mgmtInterfaceId = strconv.FormatInt(mgmtInterface.ID, 10)
 	params := ipam.NewIpamIPAddressesListParams()
 	params.SetVminterfaceID(&mgmtInterfaceId)
-	util.Info(fmt.Sprintf("Found MGMT Iface #%d -> %s", mgmtInterface.ID, mgmtInterfaceId))
+	util.Info("Found MGMT Iface #%d -> %s", mgmtInterface.ID, mgmtInterfaceId)
 
 	result, err := n.Client.Ipam.IpamIPAddressesList(params, nil)
 	if err != nil {
@@ -329,7 +329,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	}
 
 	var ipCount = result.Payload.Count
-	util.Info(fmt.Sprintf("There are actually %s IP(s) associated with the management interface", strconv.FormatInt(*ipCount, 10)))
+	util.Info("There are actually %s IP(s) associated with the management interface", strconv.FormatInt(*ipCount, 10))
 
 	if *ipCount > one {
 		return errors.New("there are more than one management ip linked to the management interface")
@@ -359,10 +359,10 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 			WithTimeout(n.GetDefaultTimeout())
 		_, err = n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
 		if err != nil {
-			return fmt.Errorf("error updating management ip addresses of VM #"+vmId+": %w", err)
+			return fmt.Errorf("error updating management ip addresses of VM #%d: %w", vmId, err)
 		}
 
-		util.Success("Successfully updated management ip addresses of VM #" + vmId + " with new IP : " + msg.IpAddress)
+		util.Success("Successfully updated management ip addresses of VM #%d with new IP: %s", vmId, msg.IpAddress)
 		return nil
 	}
 

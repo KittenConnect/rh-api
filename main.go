@@ -116,14 +116,14 @@ func main() {
 				msg := model.Message{Timestamp: d.Timestamp, FailCount: 20}
 				err := json.Unmarshal(d.Body, &msg)
 				if err != nil {
-					util.Warn(fmt.Sprintf("Error unmarshalling message : %s", err))
+					util.Warn("Error unmarshalling message : %w", err)
 					return
 				}
 
 				//Make request to the rest of API
 				err = netbox.CreateOrUpdateVM(msg)
 				if err != nil {
-					util.Warn(fmt.Errorf("error creating or updating VM : %w", err).Error())
+					util.Warn("error creating or updating VM : %w", err)
 
 					dur, _ := time.ParseDuration("10s")
 					ctx, cancel := context.WithTimeout(context.Background(), dur)
@@ -155,15 +155,15 @@ func main() {
 						})
 
 					if chErr != nil {
-						util.Warn(fmt.Sprintf("Error re-publishing message : %s", chErr))
+						util.Warn("Error re-publishing message: %s", chErr)
 					} else {
-						util.Warn(fmt.Sprintf("Re-sent message to RabbitMQ ®️ : %s", newMsgJson))
+						util.Warn("Re-sent message to RabbitMQ®️: %s", newMsgJson)
 					}
 
 					return
 				}
 
-				util.Success(fmt.Sprintf("VM up to date %s", msg.Hostname))
+				util.Success("VM %s is up to date", msg.Hostname)
 
 				dur, _ := time.ParseDuration("10s")
 				ctx, cancel := context.WithTimeout(context.Background(), dur)
@@ -185,9 +185,9 @@ func main() {
 					})
 
 				if chErr != nil {
-					util.Warn(fmt.Sprintf("Error publishing success message : %s", chErr))
+					util.Warn("Error publishing success message: %s", chErr)
 				} else {
-					util.Success(fmt.Sprintf("sent success message to RabbitMQ ®️ : %s", newMsgJson))
+					util.Success("sent success message to RabbitMQ®️: %s", newMsgJson)
 				}
 			}()
 		}
