@@ -57,23 +57,6 @@ func (n *Netbox) GetDefaultTimeout() time.Duration {
 	return time.Duration(30) * time.Second
 }
 
-func getVm(m Message) models.WritableVirtualMachineWithConfigContext {
-	var (
-		status        = "planned"
-		cluster int64 = 1
-	)
-
-	return models.WritableVirtualMachineWithConfigContext{
-		Cluster: &cluster,
-		Name:    &m.Hostname,
-		Status:  status,
-
-		CustomFields: map[string]interface{}{
-			"kc_serial_": m.GetSerial(),
-		},
-	}
-}
-
 func (n *Netbox) getIpAddress(ip string) *models.WritableIPAddress {
 	return &models.WritableIPAddress{
 		Address: &ip,
@@ -129,9 +112,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 		return errors.New("netbox is not connected")
 	}
 
-	vm := getVm(msg)
+	vm := NewVM()
+	vmCreateData := vm.Create(msg)
 
-	params := virtualization.NewVirtualizationVirtualMachinesCreateParams().WithData(&vm)
+	params := virtualization.NewVirtualizationVirtualMachinesCreateParams().WithData(&vmCreateData)
 	result, err := n.Client.Virtualization.VirtualizationVirtualMachinesCreate(params, nil)
 	if err != nil {
 		if result != nil && result.Payload != nil {
@@ -142,29 +126,13 @@ func (n *Netbox) CreateVM(msg Message) error {
 	}
 
 	util.Success("Created machine ID: %d", result.Payload.ID)
+	vm.Id = result.Payload.ID
 
 	//Create management interface
-	var (
-		mgmtInterfaceName = "mgmt"
-	)
-
-	ifParam := models.WritableVMInterface{
-		Name:    &mgmtInterfaceName,
-		Enabled: true,
-
-		TaggedVlans: []int64{},
-
-		VirtualMachine: &result.Payload.ID,
-	}
-	paramInterface := virtualization.
-		NewVirtualizationInterfacesCreateParams().
-		WithData(&ifParam).
-		WithTimeout(n.GetDefaultTimeout())
-	res, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
+	res, err := vm.CreateInterface(n, "mgmt")
 	if err != nil {
-		return fmt.Errorf("error creating virtual machine interface: %w", err)
+		return err
 	}
-	util.Success("\tSuccessfully created vm interface %s", strconv.FormatInt(res.Payload.ID, 10))
 
 	var (
 		ifId       = res.Payload.ID
@@ -180,14 +148,10 @@ func (n *Netbox) CreateVM(msg Message) error {
 	if err != nil {
 		return fmt.Errorf("error checking ip addresses existance : %w", err)
 	}
-	var (
-		zero = int64(0)
-		one  = int64(1)
-	)
 
 	util.Info("Found #%d IPs in %v", *req.Payload.Count, *req)
 	//We don't have that ip registered on netbox, so let's create him
-	if *req.Payload.Count == zero {
+	if *req.Payload.Count == 0 {
 		//Set ip to the interface
 		createdIP, err := n.CreateIP(msg.IpAddress, models.IPAddressStatusValueActive, ifId, objectType)
 		if err != nil {
@@ -195,7 +159,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		}
 
 		util.Success("\tSuccessfully created vm management ip: %s", strconv.FormatInt(createdIP.Payload.ID, 10))
-	} else if *req.Payload.Count == one {
+	} else if *req.Payload.Count == 1 {
 		ip := req.Payload.Results[0]
 
 		linkedInterfaceId := ip.AssignedObjectID
@@ -220,6 +184,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 		vmID := strconv.FormatInt(vmInterfaceResult.Payload.VirtualMachine.ID, 10)
 
+		mgmtInterfaceName := "mgmt"
 		nestedVmParams := &virtualization.VirtualizationInterfacesListParams{
 			Name:             &mgmtInterfaceName,
 			VirtualMachineID: &vmID,
@@ -254,10 +219,13 @@ func (n *Netbox) CreateVM(msg Message) error {
 }
 
 func (n *Netbox) UpdateVM(id int64, msg Message) error {
-	vm := getVm(msg)
+	vm := NewVM()
+	vm.Id = id
+
+	vmConf := vm.Create(msg)
 
 	updateParams := &virtualization.VirtualizationVirtualMachinesPartialUpdateParams{
-		Data: &vm,
+		Data: &vmConf,
 		ID:   id,
 	}
 
@@ -268,23 +236,16 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 		mgmtIfName = "mgmt"
 	)
 
-	ipIfParam := &virtualization.VirtualizationInterfacesListParams{
-		VirtualMachineID: &vmId,
-		Name:             &mgmtIfName,
-	}
-	interfaces, err := n.Client.Virtualization.
-		VirtualizationInterfacesList(ipIfParam.WithTimeout(n.GetDefaultTimeout()), nil)
+	interfaces, err := vm.GetInterfaces(n, mgmtIfName)
 	if err != nil {
-		return fmt.Errorf("error listing virtual machine interfaces: %w", err)
+		return err
 	}
 
 	// 2. If there is no interface, quit
 	var (
 		ifCount = interfaces.Payload.Count
-		one     = int64(1)
-		zero    = int64(0)
 	)
-	if *ifCount < one {
+	if *ifCount < 1 {
 		//No virtual interface, create one
 		var (
 			mgmtInterfaceName = "mgmt"
@@ -331,11 +292,11 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	var ipCount = result.Payload.Count
 	util.Info("There are actually %s IP(s) associated with the management interface", strconv.FormatInt(*ipCount, 10))
 
-	if *ipCount > one {
+	if *ipCount > 1 {
 		return errors.New("there are more than one management ip linked to the management interface")
 	}
 
-	if *ipCount == one {
+	if *ipCount == 1 {
 		ip := result.Payload.Results[0]
 		if *ip.Address == msg.IpAddress {
 			//Nothing to do
@@ -376,7 +337,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 
 	existingIpCount := result.Payload.Count
 	newIpAddrId := int64(0)
-	if *existingIpCount == zero {
+	if *existingIpCount == 0 {
 		util.Info("There is no IP registered in the netbox. Create him.")
 		var ipType = "virtualization.vminterface"
 		newIp := &ipam.IpamIPAddressesCreateParams{

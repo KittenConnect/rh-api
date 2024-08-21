@@ -1,0 +1,76 @@
+package model
+
+import (
+	"fmt"
+	"github.com/KittenConnect/rh-api/util"
+	"github.com/netbox-community/go-netbox/netbox/client/virtualization"
+	"github.com/netbox-community/go-netbox/netbox/models"
+	"strconv"
+)
+
+type VirtualMachine struct {
+	Id int64 `json:"id"`
+}
+
+func NewVM() VirtualMachine {
+	vm := VirtualMachine{}
+
+	return vm
+}
+
+func (vm *VirtualMachine) Create(msg Message) models.WritableVirtualMachineWithConfigContext {
+	var (
+		status        = "planned"
+		cluster int64 = 1
+	)
+
+	conf := models.WritableVirtualMachineWithConfigContext{
+		Cluster: &cluster,
+		Name:    &msg.Hostname,
+		Status:  status,
+
+		CustomFields: map[string]interface{}{
+			"kc_serial_": msg.GetSerial(),
+		},
+	}
+
+	return conf
+}
+
+func (vm *VirtualMachine) GetInterfaces(n *Netbox, name string) (*virtualization.VirtualizationInterfacesListOK, error) {
+	vmId := strconv.FormatInt(vm.Id, 10)
+
+	ipIfParam := &virtualization.VirtualizationInterfacesListParams{
+		VirtualMachineID: &vmId,
+		Name:             &name,
+	}
+	interfaces, err := n.Client.Virtualization.
+		VirtualizationInterfacesList(ipIfParam.WithTimeout(n.GetDefaultTimeout()), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error listing virtual machine interfaces: %w", err)
+	}
+
+	return interfaces, nil
+}
+
+func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualization.VirtualizationInterfacesCreateCreated, error) {
+	ifParam := models.WritableVMInterface{
+		Name:    &ifName,
+		Enabled: true,
+
+		TaggedVlans: []int64{},
+
+		VirtualMachine: &vm.Id,
+	}
+	paramInterface := virtualization.
+		NewVirtualizationInterfacesCreateParams().
+		WithData(&ifParam).
+		WithTimeout(n.GetDefaultTimeout())
+	res, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating virtual machine interface: %w", err)
+	}
+	util.Success("\tSuccessfully created vm interface %s", strconv.FormatInt(res.Payload.ID, 10))
+
+	return res, nil
+}
