@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"github.com/KittenConnect/rh-api/util"
+	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/netbox-community/go-netbox/netbox/client/virtualization"
 	"github.com/netbox-community/go-netbox/netbox/models"
 	"strconv"
@@ -71,6 +72,49 @@ func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualiza
 		return nil, fmt.Errorf("error creating virtual machine interface: %w", err)
 	}
 	util.Success("\tSuccessfully created vm interface %s", strconv.FormatInt(res.Payload.ID, 10))
+
+	return res, nil
+}
+
+func (vm *VirtualMachine) changeIPInterface(n *Netbox, address string, ifId int64, objectType string) error {
+	ip := n.getIpAddress(address)
+	ip.AssignedObjectID = &ifId
+	ip.AssignedObjectType = &objectType
+
+	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
+		Data: ip,
+	}
+
+	_, err := n.Client.Ipam.
+		IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).
+			WithTimeout(n.GetDefaultTimeout()), nil)
+	if err != nil {
+		return fmt.Errorf("error updating ip address: %w", err)
+	}
+
+	util.Success("Update IP to VM interface")
+	return nil
+}
+
+func (vm *VirtualMachine) CreateIP(n *Netbox, address string, status string, linkedObjectId int64, linkedObjectType string) (*ipam.IpamIPAddressesCreateCreated, error) {
+	ip := &models.WritableIPAddress{
+		Address: &address,
+		Status:  status,
+	}
+
+	if linkedObjectId != -1 && linkedObjectType != "" {
+		ip.AssignedObjectID = &linkedObjectId
+		ip.AssignedObjectType = &linkedObjectType
+	}
+
+	ipCreateParams := &ipam.IpamIPAddressesCreateParams{
+		Data: ip,
+	}
+
+	res, err := n.Client.Ipam.IpamIPAddressesCreate(ipCreateParams.WithTimeout(n.GetDefaultTimeout()), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ip address: %w", err)
+	}
 
 	return res, nil
 }

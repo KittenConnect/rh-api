@@ -64,49 +64,6 @@ func (n *Netbox) getIpAddress(ip string) *models.WritableIPAddress {
 	}
 }
 
-func (n *Netbox) changeIPInterface(address string, ifId int64, objectType string) error {
-	ip := n.getIpAddress(address)
-	ip.AssignedObjectID = &ifId
-	ip.AssignedObjectType = &objectType
-
-	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
-		Data: ip,
-	}
-
-	_, err := n.Client.Ipam.
-		IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).
-			WithTimeout(n.GetDefaultTimeout()), nil)
-	if err != nil {
-		return fmt.Errorf("error updating ip address: %w", err)
-	}
-
-	util.Success("Update IP to VM interface")
-	return nil
-}
-
-func (n *Netbox) CreateIP(address string, status string, linkedObjectId int64, linkedObjectType string) (*ipam.IpamIPAddressesCreateCreated, error) {
-	ip := &models.WritableIPAddress{
-		Address: &address,
-		Status:  status,
-	}
-
-	if linkedObjectId != -1 && linkedObjectType != "" {
-		ip.AssignedObjectID = &linkedObjectId
-		ip.AssignedObjectType = &linkedObjectType
-	}
-
-	ipCreateParams := &ipam.IpamIPAddressesCreateParams{
-		Data: ip,
-	}
-
-	res, err := n.Client.Ipam.IpamIPAddressesCreate(ipCreateParams.WithTimeout(n.GetDefaultTimeout()), nil)
-	if err != nil {
-		return nil, fmt.Errorf("error creating ip address: %w", err)
-	}
-
-	return res, nil
-}
-
 func (n *Netbox) CreateVM(msg Message) error {
 	if !n._isConnected {
 		return errors.New("netbox is not connected")
@@ -153,7 +110,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 	//We don't have that ip registered on netbox, so let's create him
 	if *req.Payload.Count == 0 {
 		//Set ip to the interface
-		createdIP, err := n.CreateIP(msg.IpAddress, models.IPAddressStatusValueActive, ifId, objectType)
+		createdIP, err := vm.CreateIP(n, msg.IpAddress, models.IPAddressStatusValueActive, ifId, objectType)
 		if err != nil {
 			return err
 		}
@@ -167,7 +124,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		//Si l'ip n'est pas liée à une interface
 		//On l'assigne à l'interface de la machine et zou
 		if linkedInterfaceId == nil {
-			return n.changeIPInterface(msg.IpAddress, ifId, objectType)
+			return vm.changeIPInterface(n, msg.IpAddress, ifId, objectType)
 		}
 
 		//Sinon on vérifie si la VM possède d'autres IP sur l'interface de management
@@ -200,7 +157,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			//L'interface possède d'autres IPs
 			//Du coup, on prend l'ip en question
 			util.Info("Remove the link ...")
-			err := n.changeIPInterface(msg.IpAddress, ifId, objectType)
+			err := vm.changeIPInterface(n, msg.IpAddress, ifId, objectType)
 			if err != nil {
 				return err
 			}
