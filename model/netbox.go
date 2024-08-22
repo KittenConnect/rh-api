@@ -69,14 +69,11 @@ func (n *Netbox) CreateVM(msg Message) error {
 		return errors.New("netbox is not connected")
 	}
 
-	vm := NewVM()
-	vmCreateData := vm.Create(msg)
-
-	params := virtualization.NewVirtualizationVirtualMachinesCreateParams().WithData(&vmCreateData)
-	result, err := n.Client.Virtualization.VirtualizationVirtualMachinesCreate(params, nil)
+	vm := NewVM(n, msg)
+	res, err := vm.Create(msg)
 	if err != nil {
-		if result != nil && result.Payload != nil {
-			return fmt.Errorf("error creating virtual machine: %w \n\t%s", err, result.Error())
+		if res != nil && res.Payload != nil {
+			return fmt.Errorf("error creating virtual machine: %w \n\t%s", err, res.Error())
 		}
 
 		return fmt.Errorf("error creating virtual machine: %w", err)
