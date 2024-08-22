@@ -83,13 +83,13 @@ func (n *Netbox) CreateVM(msg Message) error {
 	vm.NetboxId = res.Payload.ID
 
 	//Create management interface
-	res, err := vm.CreateInterface(n, "mgmt")
+	r, err := vm.CreateInterface(n, "mgmt")
 	if err != nil {
 		return err
 	}
 
 	var (
-		ifId       = res.Payload.ID
+		ifId       = r.Payload.ID
 		objectType = "virtualization.vminterface"
 	)
 
