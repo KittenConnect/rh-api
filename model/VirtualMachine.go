@@ -21,8 +21,13 @@ type VirtualMachine struct {
 	n            *Netbox
 }
 
-func NewVM() VirtualMachine {
-	vm := VirtualMachine{}
+func NewVM(n *Netbox, msg Message) *VirtualMachine {
+	vm := &VirtualMachine{
+		n:        n,
+		NetboxId: -1,
+
+		Name: msg.Hostname,
+	}
 
 	return vm
 }
