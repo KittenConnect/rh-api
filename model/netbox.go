@@ -82,8 +82,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		return fmt.Errorf("error creating virtual machine: %w", err)
 	}
 
-	util.Success("Created machine ID: %d", result.Payload.ID)
-	vm.Id = result.Payload.ID
+	util.Success("Created machine ID: %d", res.Payload.ID)
 	vm.NetboxId = res.Payload.ID
 
 	//Create management interface
