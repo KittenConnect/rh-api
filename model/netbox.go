@@ -403,3 +403,39 @@ func (n *Netbox) CreateOrUpdateVM(msg Message) error {
 
 	return nil
 }
+
+func (n *Netbox) VmExists(hostname string, serial string) (bool, int64, error) {
+	//Check if the vm exist in netbox
+	req := virtualization.
+		NewVirtualizationVirtualMachinesListParams().
+		WithTimeout(n.GetDefaultTimeout())
+	res, err := n.Client.Virtualization.VirtualizationVirtualMachinesList(req, nil)
+	if err != nil {
+		return false, 0, fmt.Errorf("unable to get list of machines from netbox: %w", err)
+	}
+
+	for _, v := range res.Payload.Results {
+		if *v.Name == hostname {
+			return true, v.ID, nil
+		}
+
+		var cf = v.CustomFields.(map[string]interface{})
+		var serial = ""
+		_ = serial
+
+		for k, v := range cf {
+			switch c := v.(type) {
+			case string:
+				if k == "kc_serial_" {
+					serial = c
+				}
+			}
+		}
+
+		if serial == serial {
+			return true, v.ID, nil
+		}
+	}
+
+	return false, 0, nil
+}
