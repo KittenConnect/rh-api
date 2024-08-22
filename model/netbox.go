@@ -176,11 +176,11 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	vm := NewVM(n, msg)
 	vm.NetboxId = id
 
-	vmConf := vm.Create(msg)
+	_, err := vm.Create(msg)
 
-	updateParams := &virtualization.VirtualizationVirtualMachinesPartialUpdateParams{
-		Data: &vmConf,
-		ID:   id,
+	err = vm.Update()
+	if err != nil {
+		return err
 	}
 
 	//Update management IP
@@ -201,30 +201,10 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	)
 	if *ifCount < 1 {
 		//No virtual interface, create one
-		var (
-			mgmtInterfaceName = "mgmt"
-		)
 
-		ifParam := models.WritableVMInterface{
-			Name:    &mgmtInterfaceName,
-			Enabled: true,
-
-			TaggedVlans: []int64{},
-
-			VirtualMachine: &id,
-		}
-		paramInterface := virtualization.
-			NewVirtualizationInterfacesCreateParams().
-			WithData(&ifParam).WithTimeout(n.GetDefaultTimeout())
-		_, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
+		_, err := vm.CreateInterface(n, "mgmt")
 		if err != nil {
 			return fmt.Errorf("error creating virtual machine interface: %w", err)
-		}
-
-		_, err = n.Client.Virtualization.
-			VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(n.GetDefaultTimeout()), nil)
-		if err != nil {
-			return fmt.Errorf("error updating virtual machine interface: %w", err)
 		}
 
 		util.Info("Updated VM #" + strconv.FormatInt(id, 10) + " management interface with IP " + msg.IpAddress)

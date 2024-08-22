@@ -32,23 +32,50 @@ func NewVM(n *Netbox, msg Message) *VirtualMachine {
 	return vm
 }
 
-func (vm *VirtualMachine) Create(msg Message) models.WritableVirtualMachineWithConfigContext {
-	var (
-		status        = "planned"
-		cluster int64 = 1
-	)
+func (vm *VirtualMachine) Get() models.WritableVirtualMachineWithConfigContext {
+	// todo: implement netbox func
+	return models.WritableVirtualMachineWithConfigContext{
+		Cluster: &vm.Cluster.ID,
+		Name:    &vm.Name,
+		Status:  vm.Status,
 
+		CustomFields: map[string]interface{}{
+			"kc_serial_": vm.Serial,
+		},
+	}
+}
+
+func (vm *VirtualMachine) Create(msg Message) (*virtualization.VirtualizationVirtualMachinesCreateCreated, error) {
 	conf := models.WritableVirtualMachineWithConfigContext{
-		Cluster: &cluster,
-		Name:    &msg.Hostname,
-		Status:  status,
+		Cluster: &vm.Cluster.ID,
+		Name:    &vm.Name,
+		Status:  vm.Status,
 
 		CustomFields: map[string]interface{}{
 			"kc_serial_": msg.GetSerial(),
 		},
 	}
 
-	return conf
+	params := virtualization.NewVirtualizationVirtualMachinesCreateParams().WithData(&conf)
+	return vm.n.Client.Virtualization.VirtualizationVirtualMachinesCreate(params, nil)
+}
+
+// Update vm infos to netbox
+func (vm *VirtualMachine) Update() error {
+	data := vm.Get()
+
+	updateParams := &virtualization.VirtualizationVirtualMachinesPartialUpdateParams{
+		Data: &data,
+		ID:   vm.NetboxId,
+	}
+
+	_, err := vm.n.Client.Virtualization.
+		VirtualizationVirtualMachinesPartialUpdate(updateParams.WithTimeout(vm.n.GetDefaultTimeout()), nil)
+	if err != nil {
+		return fmt.Errorf("error updating virtual machine interface: %w", err)
+	}
+
+	return nil
 }
 
 func (vm *VirtualMachine) GetInterfaces(n *Netbox, name string) (*virtualization.VirtualizationInterfacesListOK, error) {
