@@ -6,11 +6,19 @@ import (
 	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/netbox-community/go-netbox/netbox/client/virtualization"
 	"github.com/netbox-community/go-netbox/netbox/models"
+	"net"
 	"strconv"
 )
 
 type VirtualMachine struct {
-	Id int64 `json:"id"`
+	NetboxId int64   `json:"id"`
+	Cluster  Cluster `json:"cluster"`
+	Name     string  `json:"name"`
+	Status   string  `json:"status"`
+	Serial   string  `json:"serial"`
+
+	ManagementIP net.IP `json:"management_ip"`
+	n            *Netbox
 }
 
 func NewVM() VirtualMachine {
