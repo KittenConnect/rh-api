@@ -84,6 +84,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 	util.Success("Created machine ID: %d", result.Payload.ID)
 	vm.Id = result.Payload.ID
+	vm.NetboxId = res.Payload.ID
 
 	//Create management interface
 	res, err := vm.CreateInterface(n, "mgmt")
@@ -176,8 +177,8 @@ func (n *Netbox) CreateVM(msg Message) error {
 }
 
 func (n *Netbox) UpdateVM(id int64, msg Message) error {
-	vm := NewVM()
-	vm.Id = id
+	vm := NewVM(n, msg)
+	vm.NetboxId = id
 
 	vmConf := vm.Create(msg)
 

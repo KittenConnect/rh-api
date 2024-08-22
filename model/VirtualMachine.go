@@ -52,7 +52,7 @@ func (vm *VirtualMachine) Create(msg Message) models.WritableVirtualMachineWithC
 }
 
 func (vm *VirtualMachine) GetInterfaces(n *Netbox, name string) (*virtualization.VirtualizationInterfacesListOK, error) {
-	vmId := strconv.FormatInt(vm.Id, 10)
+	vmId := strconv.FormatInt(vm.NetboxId, 10)
 
 	ipIfParam := &virtualization.VirtualizationInterfacesListParams{
 		VirtualMachineID: &vmId,
@@ -74,7 +74,7 @@ func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualiza
 
 		TaggedVlans: []int64{},
 
-		VirtualMachine: &vm.Id,
+		VirtualMachine: &vm.NetboxId,
 	}
 	paramInterface := virtualization.
 		NewVirtualizationInterfacesCreateParams().
