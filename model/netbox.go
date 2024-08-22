@@ -338,55 +338,19 @@ func (n *Netbox) CreateOrUpdateVM(msg Message) error {
 	}
 
 	var vmId int64
-	var hasFoundVm = false
 	var err error
 
 	// Call netbox API with specific serial, then update his settings accordingly
 	//exist := contains(MachinesSerials, msg.Hostname) //TODO
 	//if !exist {
 	//If the vm don't exist in memory, fetch his details, if she exists in netbox
-	req := virtualization.
-		NewVirtualizationVirtualMachinesListParams().
-		WithTimeout(n.GetDefaultTimeout())
-	res, err := n.Client.Virtualization.VirtualizationVirtualMachinesList(req, nil)
+	exist, vmId, err := n.VmExists(msg.Hostname, msg.GetSerial())
 	if err != nil {
-		return fmt.Errorf("unable to get list of machines from netbox: %w", err)
-	}
-
-	for _, vm := range res.Payload.Results {
-		if vm.Name == &msg.Hostname {
-			vmId = vm.ID
-			hasFoundVm = true
-			break
-		}
-
-		var cf = vm.CustomFields.(map[string]interface{})
-		var serial = ""
-		_ = serial
-
-		for k, v := range cf {
-			switch c := v.(type) {
-			case string:
-				if k == "kc_serial_" {
-					serial = c
-				}
-				//	fmt.Printf("Item %q is a string, containing %q\n", k, c)
-				//case float64:
-				//	fmt.Printf("Looks like item %q is a number, specifically %f\n", k, c)
-				//default:
-				//	fmt.Printf("Not sure what type item %q is, but I think it might be %T\n", k, c)
-			}
-		}
-
-		if serial == msg.GetSerial() {
-			vmId = vm.ID
-			hasFoundVm = true
-			break
-		}
+		return fmt.Errorf("error checking if VM exists: %w", err)
 	}
 
 	//Create VM if she doesn't exists in netbox
-	if !hasFoundVm {
+	if !exist {
 		err = n.CreateVM(msg)
 
 		if err != nil {
