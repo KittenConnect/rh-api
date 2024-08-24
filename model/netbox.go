@@ -83,7 +83,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 	vm.NetboxId = res.Payload.ID
 
 	//Create management interface
-	r, err := vm.CreateInterface(n, "mgmt")
+	r, err := vm.CreateInterface("mgmt")
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 		//Si l'ip n'est pas liée à une interface
 		//On l'assigne à l'interface de la machine et zou
 		if linkedInterfaceId == nil {
-			return vm.changeIPInterface(n, msg.IpAddress, ifId, objectType)
+			return vm.UpdateInterfaceIP(msg.IpAddress, ifId, objectType)
 		}
 
 		//Sinon on vérifie si la VM possède d'autres IP sur l'interface de management
@@ -154,7 +154,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 			//L'interface possède d'autres IPs
 			//Du coup, on prend l'ip en question
 			util.Info("Remove the link ...")
-			err := vm.changeIPInterface(n, msg.IpAddress, ifId, objectType)
+			err := vm.UpdateInterfaceIP(msg.IpAddress, ifId, objectType)
 			if err != nil {
 				return err
 			}

@@ -78,15 +78,15 @@ func (vm *VirtualMachine) Update() error {
 	return nil
 }
 
-func (vm *VirtualMachine) GetInterfaces(n *Netbox, name string) (*virtualization.VirtualizationInterfacesListOK, error) {
+func (vm *VirtualMachine) GetInterfaces(name string) (*virtualization.VirtualizationInterfacesListOK, error) {
 	vmId := strconv.FormatInt(vm.NetboxId, 10)
 
 	ipIfParam := &virtualization.VirtualizationInterfacesListParams{
 		VirtualMachineID: &vmId,
 		Name:             &name,
 	}
-	interfaces, err := n.Client.Virtualization.
-		VirtualizationInterfacesList(ipIfParam.WithTimeout(n.GetDefaultTimeout()), nil)
+	interfaces, err := vm.n.Client.Virtualization.
+		VirtualizationInterfacesList(ipIfParam.WithTimeout(vm.n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return nil, fmt.Errorf("error listing virtual machine interfaces: %w", err)
 	}
@@ -95,6 +95,7 @@ func (vm *VirtualMachine) GetInterfaces(n *Netbox, name string) (*virtualization
 }
 
 func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualization.VirtualizationInterfacesCreateCreated, error) {
+func (vm *VirtualMachine) CreateInterface(ifName string) (*virtualization.VirtualizationInterfacesCreateCreated, error) {
 	ifParam := models.WritableVMInterface{
 		Name:    &ifName,
 		Enabled: true,
@@ -106,8 +107,8 @@ func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualiza
 	paramInterface := virtualization.
 		NewVirtualizationInterfacesCreateParams().
 		WithData(&ifParam).
-		WithTimeout(n.GetDefaultTimeout())
-	res, err := n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
+		WithTimeout(vm.n.GetDefaultTimeout())
+	res, err := vm.n.Client.Virtualization.VirtualizationInterfacesCreate(paramInterface, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating virtual machine interface: %w", err)
 	}
@@ -116,8 +117,8 @@ func (vm *VirtualMachine) CreateInterface(n *Netbox, ifName string) (*virtualiza
 	return res, nil
 }
 
-func (vm *VirtualMachine) changeIPInterface(n *Netbox, address string, ifId int64, objectType string) error {
-	ip := n.getIpAddress(address)
+func (vm *VirtualMachine) UpdateInterfaceIP(address string, ifId int64, objectType string) error {
+	ip := vm.n.getIpAddress(address)
 	ip.AssignedObjectID = &ifId
 	ip.AssignedObjectType = &objectType
 
@@ -125,9 +126,9 @@ func (vm *VirtualMachine) changeIPInterface(n *Netbox, address string, ifId int6
 		Data: ip,
 	}
 
-	_, err := n.Client.Ipam.
+	_, err := vm.n.Client.Ipam.
 		IpamIPAddressesPartialUpdate(ifUpdateParam.WithID(ip.ID).
-			WithTimeout(n.GetDefaultTimeout()), nil)
+			WithTimeout(vm.n.GetDefaultTimeout()), nil)
 	if err != nil {
 		return fmt.Errorf("error updating ip address: %w", err)
 	}
