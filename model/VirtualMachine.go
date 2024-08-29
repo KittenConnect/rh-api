@@ -256,7 +256,7 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 		// - unlink the old ip and interface
 		// - set the new ip to the interface
 
-		oldIpUpdatePrams := models.WritableIPAddress{
+		oldIpUpdateParams := models.WritableIPAddress{
 			Address:            &msg.IpAddress,
 			AssignedObjectType: nil,
 			AssignedObjectID:   nil,
@@ -265,11 +265,26 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 		paramUnlinkOldIp := ipam.
 			NewIpamIPAddressesPartialUpdateParams().
 			WithID(ip.ID).
-			WithData(&oldIpUpdatePrams).
+			WithData(&oldIpUpdateParams).
 			WithTimeout(vm.n.GetDefaultTimeout())
 		_, err = vm.n.Client.Ipam.IpamIPAddressesPartialUpdate(paramUnlinkOldIp, nil)
 		if err != nil {
-			return fmt.Errorf("error updating management ip addresses of VM #%d: %w", vm.NetboxId, err)
+			return fmt.Errorf("error unlinking management ip addresses of VM #%d: %w", vm.NetboxId, err)
+		}
+
+		// Set the ip to the new machine
+		newIpUpdateParam := vm.n.getIpAddress(msg.IpAddress)
+		newIpUpdateParam.AssignedObjectID = &vm.NetboxId
+		newIpUpdateParam.AssignedObjectType = &objectType
+
+		paramLinkNewIp := ipam.
+			NewIpamIPAddressesPartialUpdateParams().
+			WithID(ip.ID).
+			WithData(newIpUpdateParam).
+			WithTimeout(vm.n.GetDefaultTimeout())
+		_, err = vm.n.Client.Ipam.IpamIPAddressesPartialUpdate(paramLinkNewIp, nil)
+		if err != nil {
+			return fmt.Errorf("error linking ip with the new interface : %w", err)
 		}
 
 		util.Success("Successfully updated management ip addresses of VM #%d with new IP: %s", vm.NetboxId, msg.IpAddress)
