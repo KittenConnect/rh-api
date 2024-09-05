@@ -240,7 +240,6 @@ func (n *Netbox) VmExists(hostname string, serial string) (bool, int64, error) {
 
 		var cf = v.CustomFields.(map[string]interface{})
 		var serial = ""
-		_ = serial
 
 		for k, v := range cf {
 			switch c := v.(type) {
@@ -251,7 +250,7 @@ func (n *Netbox) VmExists(hostname string, serial string) (bool, int64, error) {
 			}
 		}
 
-		if serial == serial {
+		if serial != "" {
 			return true, v.ID, nil
 		}
 	}
