@@ -125,7 +125,7 @@ func main() {
 		for d := range msgs {
 			go func() {
 				msg := model.Message{Timestamp: d.Timestamp, FailCount: 20}
-				err := json.Unmarshal(d.Body, &msg)
+				err = json.Unmarshal(d.Body, &msg)
 				if err != nil {
 					util.Warn("Error unmarshalling message : %w", err)
 					return
