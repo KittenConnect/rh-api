@@ -161,10 +161,12 @@ func (vm *VirtualMachine) CreateInterface(ifName string) (*virtualization.Virtua
 	return res, nil
 }
 
-func (vm *VirtualMachine) UpdateInterfaceIP(address string, ifId int64, objectType string) error {
+func (vm *VirtualMachine) UpdateInterfaceIP(address string, ifId int64, objectType NetboxVmObjectType) error {
+	objType := string(objectType)
+
 	ip := vm.n.getIpAddress(address)
 	ip.AssignedObjectID = &ifId
-	ip.AssignedObjectType = &objectType
+	ip.AssignedObjectType = &objType
 
 	ifUpdateParam := &ipam.IpamIPAddressesPartialUpdateParams{
 		Data: ip,
@@ -181,15 +183,17 @@ func (vm *VirtualMachine) UpdateInterfaceIP(address string, ifId int64, objectTy
 	return nil
 }
 
-func (vm *VirtualMachine) CreateIP(n *Netbox, address string, status string, linkedObjectId int64, linkedObjectType string) (*ipam.IpamIPAddressesCreateCreated, error) {
+func (vm *VirtualMachine) CreateIP(n *Netbox, address string, status string, linkedObjectId int64, linkedObjectType NetboxVmObjectType) (*ipam.IpamIPAddressesCreateCreated, error) {
 	ip := &models.WritableIPAddress{
 		Address: &address,
 		Status:  status,
 	}
 
 	if linkedObjectId != -1 && linkedObjectType != "" {
+		objectType := string(linkedObjectType)
+
 		ip.AssignedObjectID = &linkedObjectId
-		ip.AssignedObjectType = &linkedObjectType
+		ip.AssignedObjectType = &objectType
 	}
 
 	ipCreateParams := &ipam.IpamIPAddressesCreateParams{
@@ -211,7 +215,7 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 		return fmt.Errorf("error getting interfaces: %w", err)
 	}
 
-	objectType := "virtualization.vminterface"
+	objectType := VmInterfaceType
 
 	//Update management interface with latest IP
 	err = vm.UpdateInterfaceIP(msg.IpAddress, itf.ID, objectType)
@@ -263,6 +267,7 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 		}
 
 		// Set the ip to the new machine
+		objectType := string(objectType)
 		newIpUpdateParam := vm.n.getIpAddress(msg.IpAddress)
 		newIpUpdateParam.AssignedObjectID = &vm.NetboxId
 		newIpUpdateParam.AssignedObjectType = &objectType
@@ -293,7 +298,7 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 	newIpAddrId := int64(0)
 	if *existingIpCount == 0 {
 		util.Info("There is no IP registered in the netbox. Create him.")
-		var ipType = "virtualization.vminterface"
+		var ipType = string(VmInterfaceType)
 		newIp := &ipam.IpamIPAddressesCreateParams{
 			Data: &models.WritableIPAddress{
 				Address:            &msg.IpAddress,
@@ -311,7 +316,7 @@ func (vm *VirtualMachine) UpdateManagementIP(msg Message) error {
 		newIpAddrId = result.Payload.Results[0].ID
 	}
 
-	var ipType = "virtualization.vminterface"
+	var ipType = string(VmInterfaceType)
 
 	ip := vm.n.getIpAddress(msg.IpAddress)
 	ip.ID = newIpAddrId

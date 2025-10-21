@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+type NetboxVmObjectType string
+
+const (
+	VmInterfaceType NetboxVmObjectType = "virtualization.vminterface"
+)
+
 // Netbox structure
 // For internal use ONLY !
 // To get an instance, call NewNetbox method
@@ -90,7 +96,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 
 	var (
 		ifId       = r.Payload.ID
-		objectType = "virtualization.vminterface"
+		objectType = VmInterfaceType
 	)
 
 	//Verify if ip already exists
