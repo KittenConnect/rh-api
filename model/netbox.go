@@ -183,6 +183,9 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	vm.NetboxId = id
 
 	_, err := vm.Create(msg)
+	if err != nil {
+		return err
+	}
 
 	err = vm.Update()
 	if err != nil {
