@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/KittenConnect/rh-api/util"
 	"github.com/netbox-community/go-netbox/netbox"
 	"github.com/netbox-community/go-netbox/netbox/client"
 	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/netbox-community/go-netbox/netbox/client/virtualization"
 	"github.com/netbox-community/go-netbox/netbox/models"
-	"os"
-	"strconv"
-	"time"
 )
 
 type NetboxVmObjectType string

@@ -2,8 +2,9 @@ package util
 
 import (
 	"fmt"
-	"github.com/fatih/color"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 func Color(c color.Attribute, prefix string, s string, v ...any) {
