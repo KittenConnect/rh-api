@@ -51,7 +51,7 @@ func (vm *VirtualMachine) Get() *models.WritableVirtualMachineWithConfigContext 
 	}
 }
 
-func (vm *VirtualMachine) Create(msg Message) (*virtualization.VirtualizationVirtualMachinesCreateCreated, error) {
+func (vm *VirtualMachine) Create() (*virtualization.VirtualizationVirtualMachinesCreateCreated, error) {
 	params := virtualization.NewVirtualizationVirtualMachinesCreateParams().WithData(vm.Get())
 	return vm.n.Client.Virtualization.VirtualizationVirtualMachinesCreate(params, nil)
 }

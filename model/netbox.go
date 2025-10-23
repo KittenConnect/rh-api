@@ -76,7 +76,7 @@ func (n *Netbox) CreateVM(msg Message) error {
 	}
 
 	vm := NewVM(n, msg)
-	res, err := vm.Create(msg)
+	res, err := vm.Create()
 	if err != nil {
 		if res != nil && res.Payload != nil {
 			return fmt.Errorf("error creating virtual machine: %w \n\t%s", err, res.Error())
@@ -182,7 +182,7 @@ func (n *Netbox) UpdateVM(id int64, msg Message) error {
 	vm := NewVM(n, msg)
 	vm.NetboxId = id
 
-	_, err := vm.Create(msg)
+	_, err := vm.Create()
 	if err != nil {
 		return err
 	}
