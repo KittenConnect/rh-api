@@ -26,11 +26,14 @@ var (
 )
 
 func NewVM(n *Netbox, msg Message) *VirtualMachine {
+	serial := msg.parseSerial()
+
 	vm := &VirtualMachine{
 		n:        n,
 		NetboxId: -1,
 
-		Name: msg.Hostname,
+		Name:   msg.Hostname,
+		Serial: serial,
 	}
 
 	return vm
