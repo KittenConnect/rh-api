@@ -27,7 +27,7 @@ var (
 )
 
 func NewVM(n *Netbox, msg Message) *VirtualMachine {
-	serial := msg.parseSerial()
+	serial := msg.GetSerial()
 
 	vm := &VirtualMachine{
 		n:        n,
